@@ -20,6 +20,7 @@ import (
 	"github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/singlesession/checkmatlabcode"
 	"github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/singlesession/detectmatlabtoolboxes"
 	evalmatlabsinglesession "github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/singlesession/evalmatlabcode"
+	"github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/singlesession/runmatlabbuild"
 	"github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/singlesession/runmatlabfile"
 	"github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/singlesession/runmatlabtestfile"
 	"github.com/matlab/matlab-mcp-server/internal/messages"
@@ -49,6 +50,7 @@ func TestNew_HappyPath(t *testing.T) {
 	evalInGlobalMATLABSessionTool := &evalmatlabsinglesession.Tool{}
 	checkMATLABCodeInGlobalMATLABSession := &checkmatlabcode.Tool{}
 	detectMATLABToolboxesInSingleSessionTool := &detectmatlabtoolboxes.Tool{}
+	runMATLABBuildInGlobalMATLABSessionTool := &runmatlabbuild.Tool{}
 	runMATLABFileInGlobalMATLABSessionTool := &runmatlabfile.Tool{}
 	runMATLABTestFileInGlobalMATLABSessionTool := &runmatlabtestfile.Tool{}
 	codingGuidelinesResource := &codingguidelines.Resource{}
@@ -66,6 +68,7 @@ func TestNew_HappyPath(t *testing.T) {
 		evalInGlobalMATLABSessionTool,
 		checkMATLABCodeInGlobalMATLABSession,
 		detectMATLABToolboxesInSingleSessionTool,
+		runMATLABBuildInGlobalMATLABSessionTool,
 		runMATLABFileInGlobalMATLABSessionTool,
 		runMATLABTestFileInGlobalMATLABSessionTool,
 		codingGuidelinesResource,
@@ -130,6 +133,7 @@ func TestConfigurator_GetToolsToAdd_MultipleMATLABSession_HappyPath(t *testing.T
 		evalInGlobalMATLABSessionTool,
 		checkMATLABCodeInGlobalMATLABSession,
 		detectMATLABToolboxesInSingleSessionTool,
+		&runmatlabbuild.Tool{},
 		runMATLABFileInGlobalMATLABSessionTool,
 		runMATLABTestFileInGlobalMATLABSessionTool,
 		codingGuidelinesResource,
@@ -170,6 +174,7 @@ func TestConfigurator_GetToolsToAdd_ConfigError(t *testing.T) {
 	evalInGlobalMATLABSessionTool := &evalmatlabsinglesession.Tool{}
 	checkMATLABCodeInGlobalMATLABSession := &checkmatlabcode.Tool{}
 	detectMATLABToolboxesInSingleSessionTool := &detectmatlabtoolboxes.Tool{}
+	runMATLABBuildInGlobalMATLABSessionTool := &runmatlabbuild.Tool{}
 	runMATLABFileInGlobalMATLABSessionTool := &runmatlabfile.Tool{}
 	runMATLABTestFileInGlobalMATLABSessionTool := &runmatlabtestfile.Tool{}
 	codingGuidelinesResource := &codingguidelines.Resource{}
@@ -198,6 +203,7 @@ func TestConfigurator_GetToolsToAdd_ConfigError(t *testing.T) {
 		evalInGlobalMATLABSessionTool,
 		checkMATLABCodeInGlobalMATLABSession,
 		detectMATLABToolboxesInSingleSessionTool,
+		runMATLABBuildInGlobalMATLABSessionTool,
 		runMATLABFileInGlobalMATLABSessionTool,
 		runMATLABTestFileInGlobalMATLABSessionTool,
 		codingGuidelinesResource,
@@ -235,6 +241,7 @@ func TestConfigurator_GetToolsToAdd_SingleMATLABSession_HappyPath(t *testing.T) 
 	evalInGlobalMATLABSessionTool := &evalmatlabsinglesession.Tool{}
 	checkMATLABCodeInGlobalMATLABSession := &checkmatlabcode.Tool{}
 	detectMATLABToolboxesInSingleSessionTool := &detectmatlabtoolboxes.Tool{}
+	runMATLABBuildInGlobalMATLABSessionTool := &runmatlabbuild.Tool{}
 	runMATLABFileInGlobalMATLABSessionTool := &runmatlabfile.Tool{}
 	runMATLABTestFileInGlobalMATLABSessionTool := &runmatlabtestfile.Tool{}
 	codingGuidelinesResource := &codingguidelines.Resource{}
@@ -271,6 +278,7 @@ func TestConfigurator_GetToolsToAdd_SingleMATLABSession_HappyPath(t *testing.T) 
 		evalInGlobalMATLABSessionTool,
 		checkMATLABCodeInGlobalMATLABSession,
 		detectMATLABToolboxesInSingleSessionTool,
+		runMATLABBuildInGlobalMATLABSessionTool,
 		runMATLABFileInGlobalMATLABSessionTool,
 		runMATLABTestFileInGlobalMATLABSessionTool,
 		codingGuidelinesResource,
@@ -287,6 +295,7 @@ func TestConfigurator_GetToolsToAdd_SingleMATLABSession_HappyPath(t *testing.T) 
 		evalInGlobalMATLABSessionTool,
 		checkMATLABCodeInGlobalMATLABSession,
 		detectMATLABToolboxesInSingleSessionTool,
+		runMATLABBuildInGlobalMATLABSessionTool,
 		runMATLABFileInGlobalMATLABSessionTool,
 		runMATLABTestFileInGlobalMATLABSessionTool,
 		getForkedMCPVersionTool,
@@ -364,6 +373,7 @@ func TestConfigurator_GetToolsToAdd_SingleMATLABSession_WithCustomTools_HappyPat
 		evalInGlobalMATLABSessionTool,
 		checkMATLABCodeInGlobalMATLABSession,
 		detectMATLABToolboxesInSingleSessionTool,
+		&runmatlabbuild.Tool{},
 		runMATLABFileInGlobalMATLABSessionTool,
 		runMATLABTestFileInGlobalMATLABSessionTool,
 		codingGuidelinesResource,
@@ -451,6 +461,7 @@ func TestConfigurator_GetToolsToAdd_SingleMATLABSession_CustomToolNameConflict(t
 		evalInGlobalMATLABSessionTool,
 		checkMATLABCodeInGlobalMATLABSession,
 		detectMATLABToolboxesInSingleSessionTool,
+		&runmatlabbuild.Tool{},
 		runMATLABFileInGlobalMATLABSessionTool,
 		runMATLABTestFileInGlobalMATLABSessionTool,
 		codingGuidelinesResource,
@@ -557,6 +568,7 @@ func TestConfigurator_GetToolsToAdd_SingleMATLABSession_CrossFileNameCollision(t
 		evalInGlobalMATLABSessionTool,
 		checkMATLABCodeInGlobalMATLABSession,
 		detectMATLABToolboxesInSingleSessionTool,
+		&runmatlabbuild.Tool{},
 		runMATLABFileInGlobalMATLABSessionTool,
 		runMATLABTestFileInGlobalMATLABSessionTool,
 		codingGuidelinesResource,
@@ -663,6 +675,7 @@ func TestConfigurator_GetToolsToAdd_SingleMATLABSession_WithMultipleExtensionFil
 		evalInGlobalMATLABSessionTool,
 		checkMATLABCodeInGlobalMATLABSession,
 		detectMATLABToolboxesInSingleSessionTool,
+		&runmatlabbuild.Tool{},
 		runMATLABFileInGlobalMATLABSessionTool,
 		runMATLABTestFileInGlobalMATLABSessionTool,
 		codingGuidelinesResource,
@@ -744,6 +757,7 @@ func TestConfigurator_GetToolsToAdd_SingleMATLABSession_LoaderError(t *testing.T
 		evalInGlobalMATLABSessionTool,
 		checkMATLABCodeInGlobalMATLABSession,
 		detectMATLABToolboxesInSingleSessionTool,
+		&runmatlabbuild.Tool{},
 		runMATLABFileInGlobalMATLABSessionTool,
 		runMATLABTestFileInGlobalMATLABSessionTool,
 		codingGuidelinesResource,
@@ -838,6 +852,7 @@ func TestConfigurator_GetToolsToAdd_SingleMATLABSession_LoaderErrorOnSecondFile(
 		evalInGlobalMATLABSessionTool,
 		checkMATLABCodeInGlobalMATLABSession,
 		detectMATLABToolboxesInSingleSessionTool,
+		&runmatlabbuild.Tool{},
 		runMATLABFileInGlobalMATLABSessionTool,
 		runMATLABTestFileInGlobalMATLABSessionTool,
 		codingGuidelinesResource,
@@ -892,6 +907,7 @@ func TestConfigurator_GetResourcesToAdd_HappyPath(t *testing.T) {
 		evalInGlobalMATLABSessionTool,
 		checkMATLABCodeInGlobalMATLABSession,
 		detectMATLABToolboxesInSingleSessionTool,
+		&runmatlabbuild.Tool{},
 		runMATLABFileInGlobalMATLABSessionTool,
 		runMATLABTestFileInGlobalMATLABSessionTool,
 		codingGuidelinesResource,
@@ -945,6 +961,7 @@ func TestConfigurator_GetToolsToAdd_MATLABFeatureDisabled(t *testing.T) {
 		evalInGlobalMATLABSessionTool,
 		checkMATLABCodeInGlobalMATLABSession,
 		detectMATLABToolboxesInSingleSessionTool,
+		&runmatlabbuild.Tool{},
 		runMATLABFileInGlobalMATLABSessionTool,
 		runMATLABTestFileInGlobalMATLABSessionTool,
 		codingGuidelinesResource,
@@ -999,6 +1016,7 @@ func TestConfigurator_GetResourcesToAdd_MATLABFeatureDisabled(t *testing.T) {
 		evalInGlobalMATLABSessionTool,
 		checkMATLABCodeInGlobalMATLABSession,
 		detectMATLABToolboxesInSingleSessionTool,
+		&runmatlabbuild.Tool{},
 		runMATLABFileInGlobalMATLABSessionTool,
 		runMATLABTestFileInGlobalMATLABSessionTool,
 		codingGuidelinesResource,

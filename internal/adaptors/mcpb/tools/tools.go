@@ -7,6 +7,7 @@ import (
 	"github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/singlesession/checkmatlabcode"
 	"github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/singlesession/detectmatlabtoolboxes"
 	"github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/singlesession/evalmatlabcode"
+	"github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/singlesession/runmatlabbuild"
 	"github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/singlesession/runmatlabfile"
 	"github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/singlesession/runmatlabtestfile"
 )
@@ -21,6 +22,7 @@ func Definitions() []Definition {
 	detectToolboxes := detectmatlabtoolboxes.New(nil, nil, nil, nil)
 	evalCode := evalmatlabcode.New(nil, nil, nil, nil, nil)
 	forkedMCPVersion := getforkedmcpversion.New(nil, nil)
+	runBuild := runmatlabbuild.New(nil, nil, nil, nil)
 	runFile := runmatlabfile.New(nil, nil, nil, nil, nil)
 	runTestFile := runmatlabtestfile.New(nil, nil, nil, nil)
 
@@ -29,6 +31,7 @@ func Definitions() []Definition {
 		{Name: detectToolboxes.Name(), Description: detectToolboxes.Description()},
 		{Name: evalCode.Name(), Description: evalCode.Description()},
 		{Name: forkedMCPVersion.Name(), Description: forkedMCPVersion.Description()},
+		{Name: runBuild.Name(), Description: runBuild.Description()},
 		{Name: runFile.Name(), Description: runFile.Description()},
 		{Name: runTestFile.Name(), Description: runTestFile.Description()},
 	}

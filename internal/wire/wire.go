@@ -65,6 +65,7 @@ import (
 	customvalidator "github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/singlesession/custom/loader/validator"
 	detectmatlabtoolboxessinglesessiontool "github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/singlesession/detectmatlabtoolboxes"
 	evalmatlabcodesinglesessiontool "github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/singlesession/evalmatlabcode"
+	runmatlabbuildsinglesessiontool "github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/singlesession/runmatlabbuild"
 	runmatlabfilesinglesessiontool "github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/singlesession/runmatlabfile"
 	runmatlabtestfilesinglesessiontool "github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/singlesession/runmatlabtestfile"
 	"github.com/matlab/matlab-mcp-server/internal/adaptors/messagecatalog"
@@ -88,6 +89,7 @@ import (
 	"github.com/matlab/matlab-mcp-server/internal/usecases/evalcustomtool/functioncall"
 	"github.com/matlab/matlab-mcp-server/internal/usecases/evalmatlabcode"
 	"github.com/matlab/matlab-mcp-server/internal/usecases/listavailablematlabs"
+	"github.com/matlab/matlab-mcp-server/internal/usecases/runmatlabbuildfile"
 	"github.com/matlab/matlab-mcp-server/internal/usecases/runmatlabfile"
 	"github.com/matlab/matlab-mcp-server/internal/usecases/runmatlabtestfile"
 	"github.com/matlab/matlab-mcp-server/internal/usecases/startmatlabsession"
@@ -295,6 +297,12 @@ func Initialize(serverDefinition ApplicationDefinition) *Application {
 		wire.Bind(new(detectmatlabtoolboxessinglesessiontool.Usecase), new(*detectmatlabtoolboxes.Usecase)),
 
 		detectmatlabtoolboxes.New,
+
+		runmatlabbuildsinglesessiontool.New,
+		wire.Bind(new(runmatlabbuildsinglesessiontool.Usecase), new(*runmatlabbuildfile.Usecase)),
+
+		runmatlabbuildfile.New,
+		wire.Bind(new(runmatlabbuildfile.PathValidator), new(*pathvalidator.PathValidator)),
 
 		runmatlabfilesinglesessiontool.New,
 		wire.Bind(new(runmatlabfilesinglesessiontool.ConfigFactory), new(*config.Factory)),

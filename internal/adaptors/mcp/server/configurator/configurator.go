@@ -19,6 +19,7 @@ import (
 	"github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/singlesession/checkmatlabcode"
 	"github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/singlesession/detectmatlabtoolboxes"
 	evalmatlabcodesinglesession "github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/singlesession/evalmatlabcode"
+	"github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/singlesession/runmatlabbuild"
 	"github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/singlesession/runmatlabfile"
 	"github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/singlesession/runmatlabtestfile"
 	"github.com/matlab/matlab-mcp-server/internal/messages"
@@ -66,6 +67,7 @@ func New(
 	evalInGlobalMATLABSessionTool *evalmatlabcodesinglesession.Tool,
 	checkMATLABCodeInGlobalMATLABSession *checkmatlabcode.Tool,
 	detectMATLABToolboxesInGlobalMATLABSessionTool *detectmatlabtoolboxes.Tool,
+	runMATLABBuildInGlobalMATLABSessionTool *runmatlabbuild.Tool,
 	runMATLABFileInGlobalMATLABSessionTool *runmatlabfile.Tool,
 	runMATLABTestFileInGlobalMATLABSessionTool *runmatlabtestfile.Tool,
 
@@ -91,6 +93,7 @@ func New(
 			evalInGlobalMATLABSessionTool,
 			checkMATLABCodeInGlobalMATLABSession,
 			detectMATLABToolboxesInGlobalMATLABSessionTool,
+			runMATLABBuildInGlobalMATLABSessionTool,
 			runMATLABFileInGlobalMATLABSessionTool,
 			runMATLABTestFileInGlobalMATLABSessionTool,
 			getForkedMCPVersionTool,
