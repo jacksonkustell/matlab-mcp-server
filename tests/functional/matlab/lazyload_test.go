@@ -60,6 +60,38 @@ func (s *LazyLoadTestSuite) TestLazyLoad_MATLABStartsOnFirstToolCall() {
 		"desktop connect should check the release to pick the title API, then read the title and write it back once each")
 }
 
+func (s *LazyLoadTestSuite) TestGetForkedMCPVersion_DoesNotStartMATLAB() {
+	ctx := s.T().Context()
+	session, err := s.CreateSession(mockmatlab.HappyConfig(), nil)
+	s.Require().NoError(err)
+	defer s.CleanupSession(session, true)
+
+	toolsResult, err := session.ListTools(ctx, nil)
+	s.Require().NoError(err)
+
+	var versionToolFound bool
+	for _, tool := range toolsResult.Tools {
+		if tool.Name == "get_forked_mcp_version" {
+			versionToolFound = true
+			s.Equal("Get Forked MCP Version", tool.Title)
+			s.Equal("Returns the forked MCP version.", tool.Description)
+			break
+		}
+	}
+	s.True(versionToolFound, "version tool should appear in tools list")
+
+	result, err := session.CallTool(ctx, "get_forked_mcp_version", map[string]any{})
+	s.Require().NoError(err)
+
+	text, err := session.GetTextContent(result)
+	s.Require().NoError(err)
+	s.Equal("0.01", text)
+
+	instanceEvents, err := session.ReadInstanceEvents()
+	s.Require().NoError(err)
+	s.Empty(instanceEvents, "version tool should not start MATLAB")
+}
+
 func (s *LazyLoadTestSuite) TestEagerLoad_MATLABStartsOnSessionCreation() {
 	session, err := s.CreateSession(mockmatlab.HappyConfig(), nil, "--initialize-matlab-on-startup")
 	s.Require().NoError(err)

@@ -3,6 +3,7 @@
 package tools
 
 import (
+	"github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/getforkedmcpversion"
 	"github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/singlesession/checkmatlabcode"
 	"github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/singlesession/detectmatlabtoolboxes"
 	"github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/singlesession/evalmatlabcode"
@@ -19,6 +20,7 @@ func Definitions() []Definition {
 	checkCode := checkmatlabcode.New(nil, nil, nil, nil)
 	detectToolboxes := detectmatlabtoolboxes.New(nil, nil, nil, nil)
 	evalCode := evalmatlabcode.New(nil, nil, nil, nil, nil)
+	forkedMCPVersion := getforkedmcpversion.New(nil, nil)
 	runFile := runmatlabfile.New(nil, nil, nil, nil, nil)
 	runTestFile := runmatlabtestfile.New(nil, nil, nil, nil)
 
@@ -26,6 +28,7 @@ func Definitions() []Definition {
 		{Name: checkCode.Name(), Description: checkCode.Description()},
 		{Name: detectToolboxes.Name(), Description: detectToolboxes.Description()},
 		{Name: evalCode.Name(), Description: evalCode.Description()},
+		{Name: forkedMCPVersion.Name(), Description: forkedMCPVersion.Description()},
 		{Name: runFile.Name(), Description: runFile.Description()},
 		{Name: runTestFile.Name(), Description: runTestFile.Description()},
 	}

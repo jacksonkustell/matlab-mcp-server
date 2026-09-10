@@ -54,6 +54,7 @@ import (
 	"github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/server/sdk"
 	"github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools"
 	"github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/basetool"
+	getforkedmcpversiontool "github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/getforkedmcpversion"
 	evalmatlabcodemultisessiontool "github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/multisession/evalmatlabcode"
 	listavailablematlabstool "github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/multisession/listavailablematlabs"
 	startmatlabsessiontool "github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/multisession/startmatlabsession"
@@ -251,6 +252,8 @@ func Initialize(serverDefinition ApplicationDefinition) *Application {
 		// Tools
 		wire.Bind(new(basetool.LoggerFactory), new(*logger.Factory)),
 		wire.Bind(new(basetool.TelemetryFactory), new(*telemetry.Factory)),
+
+		getforkedmcpversiontool.New,
 
 		listavailablematlabstool.New,
 		wire.Bind(new(listavailablematlabstool.Usecase), new(*listavailablematlabs.Usecase)),

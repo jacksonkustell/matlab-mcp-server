@@ -53,6 +53,7 @@ import (
 	"github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/server/rootstore"
 	"github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/server/sdk"
 	"github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools"
+	"github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/getforkedmcpversion"
 	evalmatlabcode2 "github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/multisession/evalmatlabcode"
 	listavailablematlabs2 "github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/multisession/listavailablematlabs"
 	startmatlabsession2 "github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/multisession/startmatlabsession"
@@ -164,6 +165,7 @@ func Initialize(serverDefinition ApplicationDefinition) *Application {
 	pathValidator := pathvalidator.New(osFacade)
 	evalmatlabcodeUsecase := evalmatlabcode.New(pathValidator)
 	evalmatlabcodeTool := evalmatlabcode2.New(loggerFactory, telemetryFactory, factory, evalmatlabcodeUsecase, matlabManager)
+	getforkedmcpversionTool := getforkedmcpversion.New(loggerFactory, telemetryFactory)
 	tool2 := evalmatlabcode3.New(loggerFactory, telemetryFactory, factory, evalmatlabcodeUsecase, globalMATLAB)
 	analyzer := codeanalyzer.New()
 	checkmatlabcodeUsecase := checkmatlabcode.New(pathValidator, analyzer)
@@ -181,7 +183,7 @@ func Initialize(serverDefinition ApplicationDefinition) *Application {
 	assembler := functioncall.NewAssembler()
 	evalcustomtoolUsecase := evalcustomtool.New(assembler)
 	customFactory := custom.NewFactory(loaderLoader, loggerFactory, telemetryFactory, evalcustomtoolUsecase, globalMATLAB, factory)
-	configuratorConfigurator := configurator.New(factory, serverDefinition, tool, startmatlabsessionTool, stopmatlabsessionTool, evalmatlabcodeTool, tool2, checkmatlabcodeTool, detectmatlabtoolboxesTool, runmatlabfileTool, runmatlabtestfileTool, resource, plaintextlivecodegenerationResource, customFactory)
+	configuratorConfigurator := configurator.New(factory, serverDefinition, tool, startmatlabsessionTool, stopmatlabsessionTool, evalmatlabcodeTool, getforkedmcpversionTool, tool2, checkmatlabcodeTool, detectmatlabtoolboxesTool, runmatlabfileTool, runmatlabtestfileTool, resource, plaintextlivecodegenerationResource, customFactory)
 	serverServer := server3.New(sdkFactory, loggerFactory, lifecycleSignaler, configuratorConfigurator)
 	unixFacade := unix.New()
 	manager := resourcelimit.New(loggerFactory, unixFacade)

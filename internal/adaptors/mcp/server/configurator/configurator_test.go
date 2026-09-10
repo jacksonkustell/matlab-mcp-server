@@ -12,6 +12,7 @@ import (
 	"github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/resources/plaintextlivecodegeneration"
 	"github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/server/configurator"
 	"github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools"
+	"github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/getforkedmcpversion"
 	evalmatlabmultisession "github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/multisession/evalmatlabcode"
 	"github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/multisession/listavailablematlabs"
 	"github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/multisession/startmatlabsession"
@@ -44,6 +45,7 @@ func TestNew_HappyPath(t *testing.T) {
 	startMATLABSessionTool := &startmatlabsession.Tool{}
 	stopMATLABSessionTool := &stopmatlabsession.Tool{}
 	evalInMATLABSessionTool := &evalmatlabmultisession.Tool{}
+	getForkedMCPVersionTool := getforkedmcpversion.New(nil, nil)
 	evalInGlobalMATLABSessionTool := &evalmatlabsinglesession.Tool{}
 	checkMATLABCodeInGlobalMATLABSession := &checkmatlabcode.Tool{}
 	detectMATLABToolboxesInSingleSessionTool := &detectmatlabtoolboxes.Tool{}
@@ -60,6 +62,7 @@ func TestNew_HappyPath(t *testing.T) {
 		startMATLABSessionTool,
 		stopMATLABSessionTool,
 		evalInMATLABSessionTool,
+		getForkedMCPVersionTool,
 		evalInGlobalMATLABSessionTool,
 		checkMATLABCodeInGlobalMATLABSession,
 		detectMATLABToolboxesInSingleSessionTool,
@@ -92,6 +95,7 @@ func TestConfigurator_GetToolsToAdd_MultipleMATLABSession_HappyPath(t *testing.T
 	startMATLABSessionTool := &startmatlabsession.Tool{}
 	stopMATLABSessionTool := &stopmatlabsession.Tool{}
 	evalInMATLABSessionTool := &evalmatlabmultisession.Tool{}
+	getForkedMCPVersionTool := getforkedmcpversion.New(nil, nil)
 	evalInGlobalMATLABSessionTool := &evalmatlabsinglesession.Tool{}
 	checkMATLABCodeInGlobalMATLABSession := &checkmatlabcode.Tool{}
 	detectMATLABToolboxesInSingleSessionTool := &detectmatlabtoolboxes.Tool{}
@@ -122,6 +126,7 @@ func TestConfigurator_GetToolsToAdd_MultipleMATLABSession_HappyPath(t *testing.T
 		startMATLABSessionTool,
 		stopMATLABSessionTool,
 		evalInMATLABSessionTool,
+		getForkedMCPVersionTool,
 		evalInGlobalMATLABSessionTool,
 		checkMATLABCodeInGlobalMATLABSession,
 		detectMATLABToolboxesInSingleSessionTool,
@@ -137,12 +142,13 @@ func TestConfigurator_GetToolsToAdd_MultipleMATLABSession_HappyPath(t *testing.T
 
 	// Assert
 	require.NoError(t, err, "GetToolsToAdd should not return an error")
-	assert.ElementsMatch(t, toolsToAdd, []tools.Tool{
+	assert.ElementsMatch(t, []tools.Tool{
 		listAvailableMATLABsTool,
 		startMATLABSessionTool,
 		stopMATLABSessionTool,
 		evalInMATLABSessionTool,
-	}, "GetToolsToAdd should return all the injected tools for multi session")
+		getForkedMCPVersionTool,
+	}, toolsToAdd, "GetToolsToAdd should return all the injected tools for multi session")
 }
 
 func TestConfigurator_GetToolsToAdd_ConfigError(t *testing.T) {
@@ -160,6 +166,7 @@ func TestConfigurator_GetToolsToAdd_ConfigError(t *testing.T) {
 	startMATLABSessionTool := &startmatlabsession.Tool{}
 	stopMATLABSessionTool := &stopmatlabsession.Tool{}
 	evalInMATLABSessionTool := &evalmatlabmultisession.Tool{}
+	getForkedMCPVersionTool := getforkedmcpversion.New(nil, nil)
 	evalInGlobalMATLABSessionTool := &evalmatlabsinglesession.Tool{}
 	checkMATLABCodeInGlobalMATLABSession := &checkmatlabcode.Tool{}
 	detectMATLABToolboxesInSingleSessionTool := &detectmatlabtoolboxes.Tool{}
@@ -187,6 +194,7 @@ func TestConfigurator_GetToolsToAdd_ConfigError(t *testing.T) {
 		startMATLABSessionTool,
 		stopMATLABSessionTool,
 		evalInMATLABSessionTool,
+		getForkedMCPVersionTool,
 		evalInGlobalMATLABSessionTool,
 		checkMATLABCodeInGlobalMATLABSession,
 		detectMATLABToolboxesInSingleSessionTool,
@@ -223,6 +231,7 @@ func TestConfigurator_GetToolsToAdd_SingleMATLABSession_HappyPath(t *testing.T) 
 	startMATLABSessionTool := &startmatlabsession.Tool{}
 	stopMATLABSessionTool := &stopmatlabsession.Tool{}
 	evalInMATLABSessionTool := &evalmatlabmultisession.Tool{}
+	getForkedMCPVersionTool := getforkedmcpversion.New(nil, nil)
 	evalInGlobalMATLABSessionTool := &evalmatlabsinglesession.Tool{}
 	checkMATLABCodeInGlobalMATLABSession := &checkmatlabcode.Tool{}
 	detectMATLABToolboxesInSingleSessionTool := &detectmatlabtoolboxes.Tool{}
@@ -258,6 +267,7 @@ func TestConfigurator_GetToolsToAdd_SingleMATLABSession_HappyPath(t *testing.T) 
 		startMATLABSessionTool,
 		stopMATLABSessionTool,
 		evalInMATLABSessionTool,
+		getForkedMCPVersionTool,
 		evalInGlobalMATLABSessionTool,
 		checkMATLABCodeInGlobalMATLABSession,
 		detectMATLABToolboxesInSingleSessionTool,
@@ -273,13 +283,14 @@ func TestConfigurator_GetToolsToAdd_SingleMATLABSession_HappyPath(t *testing.T) 
 
 	// Assert
 	require.NoError(t, err, "GetToolsToAdd should not return an error")
-	assert.ElementsMatch(t, toolsToAdd, []tools.Tool{
+	assert.ElementsMatch(t, []tools.Tool{
 		evalInGlobalMATLABSessionTool,
 		checkMATLABCodeInGlobalMATLABSession,
+		detectMATLABToolboxesInSingleSessionTool,
 		runMATLABFileInGlobalMATLABSessionTool,
 		runMATLABTestFileInGlobalMATLABSessionTool,
-		detectMATLABToolboxesInSingleSessionTool,
-	}, "GetToolsToAdd should return all injected tools for single session")
+		getForkedMCPVersionTool,
+	}, toolsToAdd, "GetToolsToAdd should return all injected tools for single session")
 }
 
 func TestConfigurator_GetToolsToAdd_SingleMATLABSession_WithCustomTools_HappyPath(t *testing.T) {
@@ -349,6 +360,7 @@ func TestConfigurator_GetToolsToAdd_SingleMATLABSession_WithCustomTools_HappyPat
 		startMATLABSessionTool,
 		stopMATLABSessionTool,
 		evalInMATLABSessionTool,
+		getforkedmcpversion.New(nil, nil),
 		evalInGlobalMATLABSessionTool,
 		checkMATLABCodeInGlobalMATLABSession,
 		detectMATLABToolboxesInSingleSessionTool,
@@ -397,7 +409,7 @@ func TestConfigurator_GetToolsToAdd_SingleMATLABSession_CustomToolNameConflict(t
 	plaintextlivecodegenerationResource := &plaintextlivecodegeneration.Resource{}
 
 	expectedExtensionFilePath := filepath.Join("config", "tools.json")
-	expectedConflictingToolName := "evaluate_matlab_code"
+	expectedConflictingToolName := "get_forked_mcp_version"
 
 	mockCustomTool.EXPECT().
 		Name().
@@ -435,6 +447,7 @@ func TestConfigurator_GetToolsToAdd_SingleMATLABSession_CustomToolNameConflict(t
 		startMATLABSessionTool,
 		stopMATLABSessionTool,
 		evalInMATLABSessionTool,
+		getforkedmcpversion.New(nil, nil),
 		evalInGlobalMATLABSessionTool,
 		checkMATLABCodeInGlobalMATLABSession,
 		detectMATLABToolboxesInSingleSessionTool,
@@ -540,6 +553,7 @@ func TestConfigurator_GetToolsToAdd_SingleMATLABSession_CrossFileNameCollision(t
 		startMATLABSessionTool,
 		stopMATLABSessionTool,
 		evalInMATLABSessionTool,
+		getforkedmcpversion.New(nil, nil),
 		evalInGlobalMATLABSessionTool,
 		checkMATLABCodeInGlobalMATLABSession,
 		detectMATLABToolboxesInSingleSessionTool,
@@ -645,6 +659,7 @@ func TestConfigurator_GetToolsToAdd_SingleMATLABSession_WithMultipleExtensionFil
 		startMATLABSessionTool,
 		stopMATLABSessionTool,
 		evalInMATLABSessionTool,
+		getforkedmcpversion.New(nil, nil),
 		evalInGlobalMATLABSessionTool,
 		checkMATLABCodeInGlobalMATLABSession,
 		detectMATLABToolboxesInSingleSessionTool,
@@ -725,6 +740,7 @@ func TestConfigurator_GetToolsToAdd_SingleMATLABSession_LoaderError(t *testing.T
 		startMATLABSessionTool,
 		stopMATLABSessionTool,
 		evalInMATLABSessionTool,
+		getforkedmcpversion.New(nil, nil),
 		evalInGlobalMATLABSessionTool,
 		checkMATLABCodeInGlobalMATLABSession,
 		detectMATLABToolboxesInSingleSessionTool,
@@ -818,6 +834,7 @@ func TestConfigurator_GetToolsToAdd_SingleMATLABSession_LoaderErrorOnSecondFile(
 		startMATLABSessionTool,
 		stopMATLABSessionTool,
 		evalInMATLABSessionTool,
+		getforkedmcpversion.New(nil, nil),
 		evalInGlobalMATLABSessionTool,
 		checkMATLABCodeInGlobalMATLABSession,
 		detectMATLABToolboxesInSingleSessionTool,
@@ -871,6 +888,7 @@ func TestConfigurator_GetResourcesToAdd_HappyPath(t *testing.T) {
 		startMATLABSessionTool,
 		stopMATLABSessionTool,
 		evalInMATLABSessionTool,
+		getforkedmcpversion.New(nil, nil),
 		evalInGlobalMATLABSessionTool,
 		checkMATLABCodeInGlobalMATLABSession,
 		detectMATLABToolboxesInSingleSessionTool,
@@ -923,6 +941,7 @@ func TestConfigurator_GetToolsToAdd_MATLABFeatureDisabled(t *testing.T) {
 		startMATLABSessionTool,
 		stopMATLABSessionTool,
 		evalInMATLABSessionTool,
+		getforkedmcpversion.New(nil, nil),
 		evalInGlobalMATLABSessionTool,
 		checkMATLABCodeInGlobalMATLABSession,
 		detectMATLABToolboxesInSingleSessionTool,
@@ -976,6 +995,7 @@ func TestConfigurator_GetResourcesToAdd_MATLABFeatureDisabled(t *testing.T) {
 		startMATLABSessionTool,
 		stopMATLABSessionTool,
 		evalInMATLABSessionTool,
+		getforkedmcpversion.New(nil, nil),
 		evalInGlobalMATLABSessionTool,
 		checkMATLABCodeInGlobalMATLABSession,
 		detectMATLABToolboxesInSingleSessionTool,

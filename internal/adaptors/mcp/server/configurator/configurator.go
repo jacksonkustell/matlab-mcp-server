@@ -11,6 +11,7 @@ import (
 	"github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/resources/codingguidelines"
 	"github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/resources/plaintextlivecodegeneration"
 	"github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools"
+	"github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/getforkedmcpversion"
 	evalmatlabcodemultisession "github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/multisession/evalmatlabcode"
 	"github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/multisession/listavailablematlabs"
 	"github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/multisession/startmatlabsession"
@@ -60,6 +61,7 @@ func New(
 	startMATLABSessionTool *startmatlabsession.Tool,
 	stopMATLABSessionTool *stopmatlabsession.Tool,
 	evalInMATLABSessionTool *evalmatlabcodemultisession.Tool,
+	getForkedMCPVersionTool *getforkedmcpversion.Tool,
 
 	evalInGlobalMATLABSessionTool *evalmatlabcodesinglesession.Tool,
 	checkMATLABCodeInGlobalMATLABSession *checkmatlabcode.Tool,
@@ -82,6 +84,7 @@ func New(
 			startMATLABSessionTool,
 			stopMATLABSessionTool,
 			evalInMATLABSessionTool,
+			getForkedMCPVersionTool,
 		},
 
 		singleSessionTools: []tools.Tool{
@@ -90,6 +93,7 @@ func New(
 			detectMATLABToolboxesInGlobalMATLABSessionTool,
 			runMATLABFileInGlobalMATLABSessionTool,
 			runMATLABTestFileInGlobalMATLABSessionTool,
+			getForkedMCPVersionTool,
 		},
 
 		codingGuidelinesResource:            codingGuidelinesResource,

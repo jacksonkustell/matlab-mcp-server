@@ -1,7 +1,7 @@
 {
   "tools": [
     {
-      "name": "evaluate_matlab_code",
+      "name": "get_forked_mcp_version",
       "title": "Conflicting Tool",
       "description": "This conflicts with a built-in tool",
       "inputSchema": {
@@ -12,7 +12,7 @@
     }
   ],
   "signatures": {
-    "evaluate_matlab_code": {
+    "get_forked_mcp_version": {
       "function": "disp",
       "input": {
         "order": []
