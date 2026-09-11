@@ -40,9 +40,6 @@ func BuildEvalRequest(args Args) entities.EvalRequest {
 // Execute validates the buildfile before scheduling its build in the existing MATLAB session.
 // A successful return only confirms that the Go goroutine was scheduled.
 func (u *Usecase) Execute(ctx context.Context, sessionLogger entities.Logger, client entities.MATLABSessionClient, request Args) error {
-	sessionLogger.Debug("Entering RunMATLABBuildFile Usecase")
-	defer sessionLogger.Debug("Exiting RunMATLABBuildFile Usecase")
-
 	validatedPath, err := u.pathValidator.ValidateMATLABScript(request.BuildfilePath)
 	if err != nil {
 		return err

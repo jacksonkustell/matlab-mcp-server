@@ -300,9 +300,13 @@ func Initialize(serverDefinition ApplicationDefinition) *Application {
 
 		runmatlabbuildsinglesessiontool.New,
 		wire.Bind(new(runmatlabbuildsinglesessiontool.Usecase), new(*runmatlabbuildfile.Usecase)),
+		wire.Bind(new(runmatlabbuildsinglesessiontool.ProgressMonitor), new(*runmatlabbuildfile.ProgressMonitor)),
 
 		runmatlabbuildfile.New,
 		wire.Bind(new(runmatlabbuildfile.PathValidator), new(*pathvalidator.PathValidator)),
+		runmatlabbuildfile.NewSyntheticHeartbeatProgressUpdateSource,
+		wire.Bind(new(runmatlabbuildfile.ProgressUpdateSource), new(*runmatlabbuildfile.SyntheticHeartbeatProgressUpdateSource)),
+		runmatlabbuildfile.NewProgressMonitor,
 
 		runmatlabfilesinglesessiontool.New,
 		wire.Bind(new(runmatlabfilesinglesessiontool.ConfigFactory), new(*config.Factory)),

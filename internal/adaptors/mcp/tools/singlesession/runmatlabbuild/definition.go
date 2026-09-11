@@ -5,7 +5,7 @@ package runmatlabbuild
 const (
 	name        = "run_matlab_build"
 	title       = "Run MATLAB Build"
-	description = "Trigger the MATLAB Build Tool for a build file (`buildfile_path`) in an existing MATLAB session. The build file must exist and be a valid .m file. This prototype returns immediately after scheduling the build in Go; it does not report MATLAB build completion, task results, cancellation, or live progress."
+	description = "Trigger the MATLAB Build Tool for a build file (`buildfile_path`) in an existing MATLAB session. The build file must exist and be a valid .m file. When a client supplies an MCP progress token, this prototype sends three synthetic heartbeat updates at five-second intervals before returning. It does not report MATLAB build completion, task results, or cancellation."
 )
 
 type Args struct {
@@ -13,8 +13,6 @@ type Args struct {
 }
 
 type ReturnArgs struct {
-	Message                 string `json:"message" jsonschema:"Confirmation that the build goroutine was scheduled. This does not confirm MATLAB accepted or completed the build."`
-	BuildGoroutineStarted   bool   `json:"build_goroutine_started" jsonschema:"Whether the Go routine that invokes MATLAB was scheduled."`
-	ProgressStreamConnected bool   `json:"progress_stream_connected" jsonschema:"Whether a live MATLAB build progress stream is connected."`
-	ProgressStreamError     string `json:"progress_stream_error" jsonschema:"Explanation when a live MATLAB build progress stream is unavailable."`
+	Message       string `json:"message" jsonschema:"Summary of the build launch and progress-monitoring outcome. This does not confirm MATLAB accepted or completed the build."`
+	ProgressToken any    `json:"progress_token,omitempty" jsonschema:"The MCP progress token supplied with this build request."`
 }

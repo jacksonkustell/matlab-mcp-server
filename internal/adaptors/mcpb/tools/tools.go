@@ -22,7 +22,7 @@ func Definitions() []Definition {
 	detectToolboxes := detectmatlabtoolboxes.New(nil, nil, nil, nil)
 	evalCode := evalmatlabcode.New(nil, nil, nil, nil, nil)
 	forkedMCPVersion := getforkedmcpversion.New(nil, nil)
-	runBuild := runmatlabbuild.New(nil, nil, nil, nil)
+	runBuild := runmatlabbuild.New(nil, nil, nil, nil, nil)
 	runFile := runmatlabfile.New(nil, nil, nil, nil, nil)
 	runTestFile := runmatlabtestfile.New(nil, nil, nil, nil)
 

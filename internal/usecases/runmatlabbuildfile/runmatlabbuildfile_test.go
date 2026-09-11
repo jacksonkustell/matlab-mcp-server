@@ -75,6 +75,10 @@ func TestUsecase_Execute_ValidationErrorDoesNotLaunchBuild(t *testing.T) {
 	// Assert
 	require.ErrorIs(t, err, expectedError)
 	mockClient.AssertNotCalled(t, "Eval", mock.Anything, mock.Anything, mock.Anything)
+	assert.Empty(t, mockLogger.DebugLogs())
+	assert.Empty(t, mockLogger.InfoLogs())
+	assert.Empty(t, mockLogger.WarnLogs())
+	assert.Empty(t, mockLogger.ErrorLogs())
 }
 
 func TestUsecase_Execute_ReturnsBeforeBackgroundEvaluationCompletes(t *testing.T) {
@@ -170,4 +174,7 @@ func TestUsecase_Execute_ReturnsBeforeBackgroundEvaluationCompletes(t *testing.T
 		loggedError, isError := logFields["error"].(error)
 		return isError && errors.Is(loggedError, expectedError)
 	}, time.Second, 10*time.Millisecond, "background Eval error should be logged")
+	assert.Empty(t, mockLogger.DebugLogs())
+	assert.Empty(t, mockLogger.InfoLogs())
+	assert.Empty(t, mockLogger.WarnLogs())
 }

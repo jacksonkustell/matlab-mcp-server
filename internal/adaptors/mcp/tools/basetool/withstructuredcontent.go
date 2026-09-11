@@ -15,9 +15,20 @@ import (
 
 type ToolWithStructuredContentOutput[ToolInput, ToolOutput any] struct {
 	tool[ToolInput, ToolOutput]
-	structuredContentHandler HandlerWithStructuredContentOutput[ToolInput, ToolOutput]
+	structuredContentHandler             HandlerWithStructuredContentOutput[ToolInput, ToolOutput]
+	requestAwareStructuredContentHandler RequestAwareHandlerWithStructuredContentOutput[ToolInput, ToolOutput]
 }
+
 type HandlerWithStructuredContentOutput[ToolInput, ToolOutput any] func(context.Context, entities.Logger, ToolInput) (ToolOutput, error)
+
+// ToolCallRequest exposes the request details needed by request-aware tool handlers.
+type ToolCallRequest struct {
+	Session       *mcp.ServerSession
+	ProgressToken any
+}
+
+// RequestAwareHandlerWithStructuredContentOutput handles a structured tool call with request progress details.
+type RequestAwareHandlerWithStructuredContentOutput[ToolInput, ToolOutput any] func(context.Context, entities.Logger, ToolCallRequest, ToolInput) (ToolOutput, error)
 
 func NewToolWithStructuredContent[ToolInput, ToolOutput any](
 	name string,
@@ -40,6 +51,31 @@ func NewToolWithStructuredContent[ToolInput, ToolOutput any](
 			toolAdder: mcpfacade.NewToolAdder[ToolInput, ToolOutput](),
 		},
 		structuredContentHandler: handler,
+	}
+}
+
+// NewToolWithRequestAwareStructuredContent creates a structured tool whose handler needs request progress details.
+func NewToolWithRequestAwareStructuredContent[ToolInput, ToolOutput any](
+	name string,
+	title string,
+	description string,
+	annotations AnnotationProvider,
+	loggerFactory LoggerFactory,
+	telemetryFactory TelemetryFactory,
+	handler RequestAwareHandlerWithStructuredContentOutput[ToolInput, ToolOutput],
+) ToolWithStructuredContentOutput[ToolInput, ToolOutput] {
+	return ToolWithStructuredContentOutput[ToolInput, ToolOutput]{
+		tool: tool[ToolInput, ToolOutput]{
+			name:             name,
+			title:            title,
+			description:      description,
+			annotations:      annotations,
+			loggerFactory:    loggerFactory,
+			telemetryFactory: telemetryFactory,
+			// Manually inject adder as only have type information at compile time
+			toolAdder: mcpfacade.NewToolAdder[ToolInput, ToolOutput](),
+		},
+		requestAwareStructuredContentHandler: handler,
 	}
 }
 
@@ -89,6 +125,18 @@ func (t ToolWithStructuredContentOutput[ToolInput, ToolOutput]) Handler() mcp.To
 
 		if err := t.recordToolCall(ctx, telemetry.ToolSourceBuiltin); err != nil {
 			logger.WithError(err).Warn("Telemetry unavailable during tool invocation")
+		}
+
+		if t.requestAwareStructuredContentHandler != nil {
+			toolOutput, err := t.requestAwareStructuredContentHandler(ctx, logger, ToolCallRequest{
+				Session:       req.Session,
+				ProgressToken: req.Params.GetProgressToken(),
+			}, input)
+			if err != nil {
+				logger.WithError(err).Warn("Structured handler returned an error")
+				return nil, toolOutputZeroValue, err
+			}
+			return nil, toolOutput, nil
 		}
 
 		if t.structuredContentHandler == nil {

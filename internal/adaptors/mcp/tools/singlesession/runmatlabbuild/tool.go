@@ -4,6 +4,7 @@ package runmatlabbuild
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/annotations"
 	"github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/basetool"
@@ -11,10 +12,18 @@ import (
 	"github.com/matlab/matlab-mcp-server/internal/usecases/runmatlabbuildfile"
 )
 
-const progressStreamUnavailable = "MATLAB progress stream is not configured in this prototype"
+const (
+	buildTriggeredMessage         = "Build triggered successfully"
+	noProgressTokenMessage        = "Build triggered successfully. No progress token was supplied, so no progress updates were sent."
+	progressMonitorFailureMessage = "Build triggered successfully, but progress monitoring failed: %v"
+)
 
 type Usecase interface {
 	Execute(ctx context.Context, sessionLogger entities.Logger, client entities.MATLABSessionClient, request runmatlabbuildfile.Args) error
+}
+
+type ProgressMonitor interface {
+	Monitor(ctx context.Context, reporter runmatlabbuildfile.ProgressReporter) error
 }
 
 type Tool struct {
@@ -26,14 +35,15 @@ func New(
 	telemetryFactory basetool.TelemetryFactory,
 	usecase Usecase,
 	globalMATLAB entities.GlobalMATLAB,
+	progressMonitor ProgressMonitor,
 ) *Tool {
 	return &Tool{
-		ToolWithStructuredContentOutput: basetool.NewToolWithStructuredContent(name, title, description, annotations.NewDestructiveAnnotations(), loggerFactory, telemetryFactory, Handler(usecase, globalMATLAB)),
+		ToolWithStructuredContentOutput: basetool.NewToolWithRequestAwareStructuredContent(name, title, description, annotations.NewDestructiveAnnotations(), loggerFactory, telemetryFactory, Handler(usecase, globalMATLAB, progressMonitor)),
 	}
 }
 
-func Handler(usecase Usecase, globalMATLAB entities.GlobalMATLAB) basetool.HandlerWithStructuredContentOutput[Args, ReturnArgs] {
-	return func(ctx context.Context, sessionLogger entities.Logger, inputs Args) (ReturnArgs, error) {
+func Handler(usecase Usecase, globalMATLAB entities.GlobalMATLAB, progressMonitor ProgressMonitor) basetool.RequestAwareHandlerWithStructuredContentOutput[Args, ReturnArgs] {
+	return func(ctx context.Context, sessionLogger entities.Logger, toolCall basetool.ToolCallRequest, inputs Args) (ReturnArgs, error) {
 		sessionLogger.Info("Executing Run MATLAB Build tool")
 		defer sessionLogger.Info("Done - Executing Run MATLAB Build tool")
 
@@ -49,11 +59,21 @@ func Handler(usecase Usecase, globalMATLAB entities.GlobalMATLAB) basetool.Handl
 			return ReturnArgs{}, err
 		}
 
+		if toolCall.ProgressToken == nil {
+			return ReturnArgs{Message: noProgressTokenMessage}, nil
+		}
+
+		reporter := NewMCPProgressReporter(toolCall.Session, toolCall.ProgressToken)
+		if err := progressMonitor.Monitor(ctx, reporter); err != nil {
+			return ReturnArgs{
+				Message:       fmt.Sprintf(progressMonitorFailureMessage, err),
+				ProgressToken: toolCall.ProgressToken,
+			}, nil
+		}
+
 		return ReturnArgs{
-			Message:                 "Build triggered successfully",
-			BuildGoroutineStarted:   true,
-			ProgressStreamConnected: false,
-			ProgressStreamError:     progressStreamUnavailable,
+			Message:       buildTriggeredMessage,
+			ProgressToken: toolCall.ProgressToken,
 		}, nil
 	}
 }

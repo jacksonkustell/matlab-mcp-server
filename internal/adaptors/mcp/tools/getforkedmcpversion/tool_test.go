@@ -35,6 +35,6 @@ func TestHandler_ReturnsForkedMCPVersion(t *testing.T) {
 
 	// Assert
 	require.NoError(t, err)
-	assert.Equal(t, []string{"0.01"}, result.TextContent)
+	assert.Equal(t, []string{"0.03"}, result.TextContent)
 	assert.Empty(t, result.ImageContent)
 }
