@@ -8,6 +8,6 @@ const (
 	description = "Returns the forked MCP version."
 )
 
-var forkedMCPVersion = "0.01"
+const forkedMCPVersion = "0.05"
 
 type Args struct{}

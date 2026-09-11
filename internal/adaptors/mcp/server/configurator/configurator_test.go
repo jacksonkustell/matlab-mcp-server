@@ -20,6 +20,8 @@ import (
 	"github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/singlesession/checkmatlabcode"
 	"github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/singlesession/detectmatlabtoolboxes"
 	evalmatlabsinglesession "github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/singlesession/evalmatlabcode"
+	"github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/singlesession/pollmatlabcommands"
+	"github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/singlesession/queuematlabcommand"
 	"github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/singlesession/runmatlabfile"
 	"github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/singlesession/runmatlabtestfile"
 	"github.com/matlab/matlab-mcp-server/internal/messages"
@@ -51,6 +53,8 @@ func TestNew_HappyPath(t *testing.T) {
 	detectMATLABToolboxesInSingleSessionTool := &detectmatlabtoolboxes.Tool{}
 	runMATLABFileInGlobalMATLABSessionTool := &runmatlabfile.Tool{}
 	runMATLABTestFileInGlobalMATLABSessionTool := &runmatlabtestfile.Tool{}
+	queueMATLABCommandInGlobalMATLABSessionTool := &queuematlabcommand.Tool{}
+	pollMATLABCommandsInGlobalMATLABSessionTool := &pollmatlabcommands.Tool{}
 	codingGuidelinesResource := &codingguidelines.Resource{}
 	plaintextlivecodegenerationResource := &plaintextlivecodegeneration.Resource{}
 
@@ -68,6 +72,8 @@ func TestNew_HappyPath(t *testing.T) {
 		detectMATLABToolboxesInSingleSessionTool,
 		runMATLABFileInGlobalMATLABSessionTool,
 		runMATLABTestFileInGlobalMATLABSessionTool,
+		queueMATLABCommandInGlobalMATLABSessionTool,
+		pollMATLABCommandsInGlobalMATLABSessionTool,
 		codingGuidelinesResource,
 		plaintextlivecodegenerationResource,
 		mockCustomToolFactory,
@@ -101,6 +107,8 @@ func TestConfigurator_GetToolsToAdd_MultipleMATLABSession_HappyPath(t *testing.T
 	detectMATLABToolboxesInSingleSessionTool := &detectmatlabtoolboxes.Tool{}
 	runMATLABFileInGlobalMATLABSessionTool := &runmatlabfile.Tool{}
 	runMATLABTestFileInGlobalMATLABSessionTool := &runmatlabtestfile.Tool{}
+	queueMATLABCommandInGlobalMATLABSessionTool := &queuematlabcommand.Tool{}
+	pollMATLABCommandsInGlobalMATLABSessionTool := &pollmatlabcommands.Tool{}
 	codingGuidelinesResource := &codingguidelines.Resource{}
 	plaintextlivecodegenerationResource := &plaintextlivecodegeneration.Resource{}
 
@@ -132,6 +140,8 @@ func TestConfigurator_GetToolsToAdd_MultipleMATLABSession_HappyPath(t *testing.T
 		detectMATLABToolboxesInSingleSessionTool,
 		runMATLABFileInGlobalMATLABSessionTool,
 		runMATLABTestFileInGlobalMATLABSessionTool,
+		queueMATLABCommandInGlobalMATLABSessionTool,
+		pollMATLABCommandsInGlobalMATLABSessionTool,
 		codingGuidelinesResource,
 		plaintextlivecodegenerationResource,
 		mockCustomToolFactory,
@@ -172,6 +182,8 @@ func TestConfigurator_GetToolsToAdd_ConfigError(t *testing.T) {
 	detectMATLABToolboxesInSingleSessionTool := &detectmatlabtoolboxes.Tool{}
 	runMATLABFileInGlobalMATLABSessionTool := &runmatlabfile.Tool{}
 	runMATLABTestFileInGlobalMATLABSessionTool := &runmatlabtestfile.Tool{}
+	queueMATLABCommandInGlobalMATLABSessionTool := &queuematlabcommand.Tool{}
+	pollMATLABCommandsInGlobalMATLABSessionTool := &pollmatlabcommands.Tool{}
 	codingGuidelinesResource := &codingguidelines.Resource{}
 	plaintextlivecodegenerationResource := &plaintextlivecodegeneration.Resource{}
 
@@ -200,6 +212,8 @@ func TestConfigurator_GetToolsToAdd_ConfigError(t *testing.T) {
 		detectMATLABToolboxesInSingleSessionTool,
 		runMATLABFileInGlobalMATLABSessionTool,
 		runMATLABTestFileInGlobalMATLABSessionTool,
+		queueMATLABCommandInGlobalMATLABSessionTool,
+		pollMATLABCommandsInGlobalMATLABSessionTool,
 		codingGuidelinesResource,
 		plaintextlivecodegenerationResource,
 		mockCustomToolFactory,
@@ -237,6 +251,8 @@ func TestConfigurator_GetToolsToAdd_SingleMATLABSession_HappyPath(t *testing.T) 
 	detectMATLABToolboxesInSingleSessionTool := &detectmatlabtoolboxes.Tool{}
 	runMATLABFileInGlobalMATLABSessionTool := &runmatlabfile.Tool{}
 	runMATLABTestFileInGlobalMATLABSessionTool := &runmatlabtestfile.Tool{}
+	queueMATLABCommandInGlobalMATLABSessionTool := &queuematlabcommand.Tool{}
+	pollMATLABCommandsInGlobalMATLABSessionTool := &pollmatlabcommands.Tool{}
 	codingGuidelinesResource := &codingguidelines.Resource{}
 	plaintextlivecodegenerationResource := &plaintextlivecodegeneration.Resource{}
 
@@ -273,6 +289,8 @@ func TestConfigurator_GetToolsToAdd_SingleMATLABSession_HappyPath(t *testing.T) 
 		detectMATLABToolboxesInSingleSessionTool,
 		runMATLABFileInGlobalMATLABSessionTool,
 		runMATLABTestFileInGlobalMATLABSessionTool,
+		queueMATLABCommandInGlobalMATLABSessionTool,
+		pollMATLABCommandsInGlobalMATLABSessionTool,
 		codingGuidelinesResource,
 		plaintextlivecodegenerationResource,
 		mockCustomToolFactory,
@@ -289,6 +307,8 @@ func TestConfigurator_GetToolsToAdd_SingleMATLABSession_HappyPath(t *testing.T) 
 		detectMATLABToolboxesInSingleSessionTool,
 		runMATLABFileInGlobalMATLABSessionTool,
 		runMATLABTestFileInGlobalMATLABSessionTool,
+		queueMATLABCommandInGlobalMATLABSessionTool,
+		pollMATLABCommandsInGlobalMATLABSessionTool,
 		getForkedMCPVersionTool,
 	}, toolsToAdd, "GetToolsToAdd should return all injected tools for single session")
 }
@@ -319,6 +339,8 @@ func TestConfigurator_GetToolsToAdd_SingleMATLABSession_WithCustomTools_HappyPat
 	detectMATLABToolboxesInSingleSessionTool := &detectmatlabtoolboxes.Tool{}
 	runMATLABFileInGlobalMATLABSessionTool := &runmatlabfile.Tool{}
 	runMATLABTestFileInGlobalMATLABSessionTool := &runmatlabtestfile.Tool{}
+	queueMATLABCommandInGlobalMATLABSessionTool := &queuematlabcommand.Tool{}
+	pollMATLABCommandsInGlobalMATLABSessionTool := &pollmatlabcommands.Tool{}
 	codingGuidelinesResource := &codingguidelines.Resource{}
 	plaintextlivecodegenerationResource := &plaintextlivecodegeneration.Resource{}
 
@@ -366,6 +388,8 @@ func TestConfigurator_GetToolsToAdd_SingleMATLABSession_WithCustomTools_HappyPat
 		detectMATLABToolboxesInSingleSessionTool,
 		runMATLABFileInGlobalMATLABSessionTool,
 		runMATLABTestFileInGlobalMATLABSessionTool,
+		queueMATLABCommandInGlobalMATLABSessionTool,
+		pollMATLABCommandsInGlobalMATLABSessionTool,
 		codingGuidelinesResource,
 		plaintextlivecodegenerationResource,
 		mockCustomToolFactory,
@@ -405,6 +429,8 @@ func TestConfigurator_GetToolsToAdd_SingleMATLABSession_CustomToolNameConflict(t
 	detectMATLABToolboxesInSingleSessionTool := detectmatlabtoolboxes.New(nil, nil, nil, nil)
 	runMATLABFileInGlobalMATLABSessionTool := runmatlabfile.New(nil, nil, nil, nil, nil)
 	runMATLABTestFileInGlobalMATLABSessionTool := runmatlabtestfile.New(nil, nil, nil, nil)
+	queueMATLABCommandInGlobalMATLABSessionTool := &queuematlabcommand.Tool{}
+	pollMATLABCommandsInGlobalMATLABSessionTool := &pollmatlabcommands.Tool{}
 	codingGuidelinesResource := &codingguidelines.Resource{}
 	plaintextlivecodegenerationResource := &plaintextlivecodegeneration.Resource{}
 
@@ -453,6 +479,8 @@ func TestConfigurator_GetToolsToAdd_SingleMATLABSession_CustomToolNameConflict(t
 		detectMATLABToolboxesInSingleSessionTool,
 		runMATLABFileInGlobalMATLABSessionTool,
 		runMATLABTestFileInGlobalMATLABSessionTool,
+		queueMATLABCommandInGlobalMATLABSessionTool,
+		pollMATLABCommandsInGlobalMATLABSessionTool,
 		codingGuidelinesResource,
 		plaintextlivecodegenerationResource,
 		mockCustomToolFactory,
@@ -499,6 +527,8 @@ func TestConfigurator_GetToolsToAdd_SingleMATLABSession_CrossFileNameCollision(t
 	detectMATLABToolboxesInSingleSessionTool := &detectmatlabtoolboxes.Tool{}
 	runMATLABFileInGlobalMATLABSessionTool := &runmatlabfile.Tool{}
 	runMATLABTestFileInGlobalMATLABSessionTool := &runmatlabtestfile.Tool{}
+	queueMATLABCommandInGlobalMATLABSessionTool := &queuematlabcommand.Tool{}
+	pollMATLABCommandsInGlobalMATLABSessionTool := &pollmatlabcommands.Tool{}
 	codingGuidelinesResource := &codingguidelines.Resource{}
 	plaintextlivecodegenerationResource := &plaintextlivecodegeneration.Resource{}
 
@@ -559,6 +589,8 @@ func TestConfigurator_GetToolsToAdd_SingleMATLABSession_CrossFileNameCollision(t
 		detectMATLABToolboxesInSingleSessionTool,
 		runMATLABFileInGlobalMATLABSessionTool,
 		runMATLABTestFileInGlobalMATLABSessionTool,
+		queueMATLABCommandInGlobalMATLABSessionTool,
+		pollMATLABCommandsInGlobalMATLABSessionTool,
 		codingGuidelinesResource,
 		plaintextlivecodegenerationResource,
 		mockCustomToolFactory,
@@ -606,6 +638,8 @@ func TestConfigurator_GetToolsToAdd_SingleMATLABSession_WithMultipleExtensionFil
 	detectMATLABToolboxesInSingleSessionTool := &detectmatlabtoolboxes.Tool{}
 	runMATLABFileInGlobalMATLABSessionTool := &runmatlabfile.Tool{}
 	runMATLABTestFileInGlobalMATLABSessionTool := &runmatlabtestfile.Tool{}
+	queueMATLABCommandInGlobalMATLABSessionTool := &queuematlabcommand.Tool{}
+	pollMATLABCommandsInGlobalMATLABSessionTool := &pollmatlabcommands.Tool{}
 	codingGuidelinesResource := &codingguidelines.Resource{}
 	plaintextlivecodegenerationResource := &plaintextlivecodegeneration.Resource{}
 
@@ -665,6 +699,8 @@ func TestConfigurator_GetToolsToAdd_SingleMATLABSession_WithMultipleExtensionFil
 		detectMATLABToolboxesInSingleSessionTool,
 		runMATLABFileInGlobalMATLABSessionTool,
 		runMATLABTestFileInGlobalMATLABSessionTool,
+		queueMATLABCommandInGlobalMATLABSessionTool,
+		pollMATLABCommandsInGlobalMATLABSessionTool,
 		codingGuidelinesResource,
 		plaintextlivecodegenerationResource,
 		mockCustomToolFactory,
@@ -702,6 +738,8 @@ func TestConfigurator_GetToolsToAdd_SingleMATLABSession_LoaderError(t *testing.T
 	detectMATLABToolboxesInSingleSessionTool := &detectmatlabtoolboxes.Tool{}
 	runMATLABFileInGlobalMATLABSessionTool := &runmatlabfile.Tool{}
 	runMATLABTestFileInGlobalMATLABSessionTool := &runmatlabtestfile.Tool{}
+	queueMATLABCommandInGlobalMATLABSessionTool := &queuematlabcommand.Tool{}
+	pollMATLABCommandsInGlobalMATLABSessionTool := &pollmatlabcommands.Tool{}
 	codingGuidelinesResource := &codingguidelines.Resource{}
 	plaintextlivecodegenerationResource := &plaintextlivecodegeneration.Resource{}
 
@@ -746,6 +784,8 @@ func TestConfigurator_GetToolsToAdd_SingleMATLABSession_LoaderError(t *testing.T
 		detectMATLABToolboxesInSingleSessionTool,
 		runMATLABFileInGlobalMATLABSessionTool,
 		runMATLABTestFileInGlobalMATLABSessionTool,
+		queueMATLABCommandInGlobalMATLABSessionTool,
+		pollMATLABCommandsInGlobalMATLABSessionTool,
 		codingGuidelinesResource,
 		plaintextlivecodegenerationResource,
 		mockCustomToolFactory,
@@ -785,6 +825,8 @@ func TestConfigurator_GetToolsToAdd_SingleMATLABSession_LoaderErrorOnSecondFile(
 	detectMATLABToolboxesInSingleSessionTool := &detectmatlabtoolboxes.Tool{}
 	runMATLABFileInGlobalMATLABSessionTool := &runmatlabfile.Tool{}
 	runMATLABTestFileInGlobalMATLABSessionTool := &runmatlabtestfile.Tool{}
+	queueMATLABCommandInGlobalMATLABSessionTool := &queuematlabcommand.Tool{}
+	pollMATLABCommandsInGlobalMATLABSessionTool := &pollmatlabcommands.Tool{}
 	codingGuidelinesResource := &codingguidelines.Resource{}
 	plaintextlivecodegenerationResource := &plaintextlivecodegeneration.Resource{}
 
@@ -840,6 +882,8 @@ func TestConfigurator_GetToolsToAdd_SingleMATLABSession_LoaderErrorOnSecondFile(
 		detectMATLABToolboxesInSingleSessionTool,
 		runMATLABFileInGlobalMATLABSessionTool,
 		runMATLABTestFileInGlobalMATLABSessionTool,
+		queueMATLABCommandInGlobalMATLABSessionTool,
+		pollMATLABCommandsInGlobalMATLABSessionTool,
 		codingGuidelinesResource,
 		plaintextlivecodegenerationResource,
 		mockCustomToolFactory,
@@ -873,6 +917,8 @@ func TestConfigurator_GetResourcesToAdd_HappyPath(t *testing.T) {
 	detectMATLABToolboxesInSingleSessionTool := &detectmatlabtoolboxes.Tool{}
 	runMATLABFileInGlobalMATLABSessionTool := &runmatlabfile.Tool{}
 	runMATLABTestFileInGlobalMATLABSessionTool := &runmatlabtestfile.Tool{}
+	queueMATLABCommandInGlobalMATLABSessionTool := &queuematlabcommand.Tool{}
+	pollMATLABCommandsInGlobalMATLABSessionTool := &pollmatlabcommands.Tool{}
 	codingGuidelinesResource := &codingguidelines.Resource{}
 	plaintextlivecodegenerationResource := &plaintextlivecodegeneration.Resource{}
 
@@ -894,6 +940,8 @@ func TestConfigurator_GetResourcesToAdd_HappyPath(t *testing.T) {
 		detectMATLABToolboxesInSingleSessionTool,
 		runMATLABFileInGlobalMATLABSessionTool,
 		runMATLABTestFileInGlobalMATLABSessionTool,
+		queueMATLABCommandInGlobalMATLABSessionTool,
+		pollMATLABCommandsInGlobalMATLABSessionTool,
 		codingGuidelinesResource,
 		plaintextlivecodegenerationResource,
 		mockCustomToolFactory,
@@ -926,6 +974,8 @@ func TestConfigurator_GetToolsToAdd_MATLABFeatureDisabled(t *testing.T) {
 	detectMATLABToolboxesInSingleSessionTool := &detectmatlabtoolboxes.Tool{}
 	runMATLABFileInGlobalMATLABSessionTool := &runmatlabfile.Tool{}
 	runMATLABTestFileInGlobalMATLABSessionTool := &runmatlabtestfile.Tool{}
+	queueMATLABCommandInGlobalMATLABSessionTool := &queuematlabcommand.Tool{}
+	pollMATLABCommandsInGlobalMATLABSessionTool := &pollmatlabcommands.Tool{}
 	codingGuidelinesResource := &codingguidelines.Resource{}
 	plaintextlivecodegenerationResource := &plaintextlivecodegeneration.Resource{}
 
@@ -947,6 +997,8 @@ func TestConfigurator_GetToolsToAdd_MATLABFeatureDisabled(t *testing.T) {
 		detectMATLABToolboxesInSingleSessionTool,
 		runMATLABFileInGlobalMATLABSessionTool,
 		runMATLABTestFileInGlobalMATLABSessionTool,
+		queueMATLABCommandInGlobalMATLABSessionTool,
+		pollMATLABCommandsInGlobalMATLABSessionTool,
 		codingGuidelinesResource,
 		plaintextlivecodegenerationResource,
 		mockCustomToolFactory,
@@ -980,6 +1032,8 @@ func TestConfigurator_GetResourcesToAdd_MATLABFeatureDisabled(t *testing.T) {
 	detectMATLABToolboxesInSingleSessionTool := &detectmatlabtoolboxes.Tool{}
 	runMATLABFileInGlobalMATLABSessionTool := &runmatlabfile.Tool{}
 	runMATLABTestFileInGlobalMATLABSessionTool := &runmatlabtestfile.Tool{}
+	queueMATLABCommandInGlobalMATLABSessionTool := &queuematlabcommand.Tool{}
+	pollMATLABCommandsInGlobalMATLABSessionTool := &pollmatlabcommands.Tool{}
 	codingGuidelinesResource := &codingguidelines.Resource{}
 	plaintextlivecodegenerationResource := &plaintextlivecodegeneration.Resource{}
 
@@ -1001,6 +1055,8 @@ func TestConfigurator_GetResourcesToAdd_MATLABFeatureDisabled(t *testing.T) {
 		detectMATLABToolboxesInSingleSessionTool,
 		runMATLABFileInGlobalMATLABSessionTool,
 		runMATLABTestFileInGlobalMATLABSessionTool,
+		queueMATLABCommandInGlobalMATLABSessionTool,
+		pollMATLABCommandsInGlobalMATLABSessionTool,
 		codingGuidelinesResource,
 		plaintextlivecodegenerationResource,
 		mockCustomToolFactory,

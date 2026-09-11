@@ -65,6 +65,8 @@ import (
 	customvalidator "github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/singlesession/custom/loader/validator"
 	detectmatlabtoolboxessinglesessiontool "github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/singlesession/detectmatlabtoolboxes"
 	evalmatlabcodesinglesessiontool "github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/singlesession/evalmatlabcode"
+	pollmatlabcommandssinglesessiontool "github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/singlesession/pollmatlabcommands"
+	queuematlabcommandsinglesessiontool "github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/singlesession/queuematlabcommand"
 	runmatlabfilesinglesessiontool "github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/singlesession/runmatlabfile"
 	runmatlabtestfilesinglesessiontool "github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/singlesession/runmatlabtestfile"
 	"github.com/matlab/matlab-mcp-server/internal/adaptors/messagecatalog"
@@ -88,6 +90,7 @@ import (
 	"github.com/matlab/matlab-mcp-server/internal/usecases/evalcustomtool/functioncall"
 	"github.com/matlab/matlab-mcp-server/internal/usecases/evalmatlabcode"
 	"github.com/matlab/matlab-mcp-server/internal/usecases/listavailablematlabs"
+	"github.com/matlab/matlab-mcp-server/internal/usecases/matlabcommandqueue"
 	"github.com/matlab/matlab-mcp-server/internal/usecases/runmatlabfile"
 	"github.com/matlab/matlab-mcp-server/internal/usecases/runmatlabtestfile"
 	"github.com/matlab/matlab-mcp-server/internal/usecases/startmatlabsession"
@@ -279,8 +282,20 @@ func Initialize(serverDefinition ApplicationDefinition) *Application {
 		wire.Bind(new(evalmatlabcodesinglesessiontool.ConfigFactory), new(*config.Factory)),
 		wire.Bind(new(evalmatlabcodesinglesessiontool.Usecase), new(*evalmatlabcode.Usecase)),
 
+		queuematlabcommandsinglesessiontool.New,
+		wire.Bind(new(queuematlabcommandsinglesessiontool.Usecase), new(*matlabcommandqueue.Queue)),
+
+		pollmatlabcommandssinglesessiontool.New,
+		wire.Bind(new(pollmatlabcommandssinglesessiontool.Usecase), new(*matlabcommandqueue.Queue)),
+
 		evalmatlabcode.New,
 		wire.Bind(new(evalmatlabcode.PathValidator), new(*pathvalidator.PathValidator)),
+
+		// MATLAB Command Queue
+		matlabcommandqueue.New,
+		wire.Bind(new(matlabcommandqueue.LoggerFactory), new(*logger.Factory)),
+		wire.Bind(new(matlabcommandqueue.LifecycleSignaler), new(*lifecyclesignaler.LifecycleSignaler)),
+		wire.Bind(new(matlabcommandqueue.MATLABCodeEvaluator), new(*evalmatlabcode.Usecase)),
 
 		checkmatlabcodesinglesessiontool.New,
 		wire.Bind(new(checkmatlabcodesinglesessiontool.Usecase), new(*checkmatlabcode.Usecase)),

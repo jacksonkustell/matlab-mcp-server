@@ -19,6 +19,8 @@ import (
 	"github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/singlesession/checkmatlabcode"
 	"github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/singlesession/detectmatlabtoolboxes"
 	evalmatlabcodesinglesession "github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/singlesession/evalmatlabcode"
+	"github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/singlesession/pollmatlabcommands"
+	"github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/singlesession/queuematlabcommand"
 	"github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/singlesession/runmatlabfile"
 	"github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/singlesession/runmatlabtestfile"
 	"github.com/matlab/matlab-mcp-server/internal/messages"
@@ -68,6 +70,8 @@ func New(
 	detectMATLABToolboxesInGlobalMATLABSessionTool *detectmatlabtoolboxes.Tool,
 	runMATLABFileInGlobalMATLABSessionTool *runmatlabfile.Tool,
 	runMATLABTestFileInGlobalMATLABSessionTool *runmatlabtestfile.Tool,
+	queueMATLABCommandInGlobalMATLABSessionTool *queuematlabcommand.Tool,
+	pollMATLABCommandsInGlobalMATLABSessionTool *pollmatlabcommands.Tool,
 
 	codingGuidelinesResource *codingguidelines.Resource,
 	plaintextlivecodegenerationResource *plaintextlivecodegeneration.Resource,
@@ -93,6 +97,8 @@ func New(
 			detectMATLABToolboxesInGlobalMATLABSessionTool,
 			runMATLABFileInGlobalMATLABSessionTool,
 			runMATLABTestFileInGlobalMATLABSessionTool,
+			queueMATLABCommandInGlobalMATLABSessionTool,
+			pollMATLABCommandsInGlobalMATLABSessionTool,
 			getForkedMCPVersionTool,
 		},
 

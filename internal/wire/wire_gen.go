@@ -64,6 +64,8 @@ import (
 	"github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/singlesession/custom/loader/validator"
 	detectmatlabtoolboxes2 "github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/singlesession/detectmatlabtoolboxes"
 	evalmatlabcode3 "github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/singlesession/evalmatlabcode"
+	"github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/singlesession/pollmatlabcommands"
+	"github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/singlesession/queuematlabcommand"
 	runmatlabfile2 "github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/singlesession/runmatlabfile"
 	runmatlabtestfile2 "github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/singlesession/runmatlabtestfile"
 	"github.com/matlab/matlab-mcp-server/internal/adaptors/messagecatalog"
@@ -87,6 +89,7 @@ import (
 	"github.com/matlab/matlab-mcp-server/internal/usecases/evalcustomtool/functioncall"
 	"github.com/matlab/matlab-mcp-server/internal/usecases/evalmatlabcode"
 	"github.com/matlab/matlab-mcp-server/internal/usecases/listavailablematlabs"
+	"github.com/matlab/matlab-mcp-server/internal/usecases/matlabcommandqueue"
 	"github.com/matlab/matlab-mcp-server/internal/usecases/runmatlabfile"
 	"github.com/matlab/matlab-mcp-server/internal/usecases/runmatlabtestfile"
 	"github.com/matlab/matlab-mcp-server/internal/usecases/startmatlabsession"
@@ -176,6 +179,9 @@ func Initialize(serverDefinition ApplicationDefinition) *Application {
 	runmatlabfileTool := runmatlabfile2.New(loggerFactory, telemetryFactory, factory, runmatlabfileUsecase, globalMATLAB)
 	runmatlabtestfileUsecase := runmatlabtestfile.New(pathValidator)
 	runmatlabtestfileTool := runmatlabtestfile2.New(loggerFactory, telemetryFactory, runmatlabtestfileUsecase, globalMATLAB)
+	queue := matlabcommandqueue.New(loggerFactory, globalMATLAB, evalmatlabcodeUsecase, lifecycleSignaler)
+	queuematlabcommandTool := queuematlabcommand.New(loggerFactory, telemetryFactory, queue)
+	pollmatlabcommandsTool := pollmatlabcommands.New(loggerFactory, telemetryFactory, queue)
 	resource := codingguidelines.New(loggerFactory)
 	plaintextlivecodegenerationResource := plaintextlivecodegeneration.New(loggerFactory)
 	validatorValidator := validator.NewValidator()
@@ -183,7 +189,7 @@ func Initialize(serverDefinition ApplicationDefinition) *Application {
 	assembler := functioncall.NewAssembler()
 	evalcustomtoolUsecase := evalcustomtool.New(assembler)
 	customFactory := custom.NewFactory(loaderLoader, loggerFactory, telemetryFactory, evalcustomtoolUsecase, globalMATLAB, factory)
-	configuratorConfigurator := configurator.New(factory, serverDefinition, tool, startmatlabsessionTool, stopmatlabsessionTool, evalmatlabcodeTool, getforkedmcpversionTool, tool2, checkmatlabcodeTool, detectmatlabtoolboxesTool, runmatlabfileTool, runmatlabtestfileTool, resource, plaintextlivecodegenerationResource, customFactory)
+	configuratorConfigurator := configurator.New(factory, serverDefinition, tool, startmatlabsessionTool, stopmatlabsessionTool, evalmatlabcodeTool, getforkedmcpversionTool, tool2, checkmatlabcodeTool, detectmatlabtoolboxesTool, runmatlabfileTool, runmatlabtestfileTool, queuematlabcommandTool, pollmatlabcommandsTool, resource, plaintextlivecodegenerationResource, customFactory)
 	serverServer := server3.New(sdkFactory, loggerFactory, lifecycleSignaler, configuratorConfigurator)
 	unixFacade := unix.New()
 	manager := resourcelimit.New(loggerFactory, unixFacade)

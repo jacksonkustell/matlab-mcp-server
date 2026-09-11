@@ -7,6 +7,8 @@ import (
 	"github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/singlesession/checkmatlabcode"
 	"github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/singlesession/detectmatlabtoolboxes"
 	"github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/singlesession/evalmatlabcode"
+	"github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/singlesession/pollmatlabcommands"
+	"github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/singlesession/queuematlabcommand"
 	"github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/singlesession/runmatlabfile"
 	"github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/singlesession/runmatlabtestfile"
 )
@@ -21,6 +23,8 @@ func Definitions() []Definition {
 	detectToolboxes := detectmatlabtoolboxes.New(nil, nil, nil, nil)
 	evalCode := evalmatlabcode.New(nil, nil, nil, nil, nil)
 	forkedMCPVersion := getforkedmcpversion.New(nil, nil)
+	pollCommands := pollmatlabcommands.New(nil, nil, nil)
+	queueCommand := queuematlabcommand.New(nil, nil, nil)
 	runFile := runmatlabfile.New(nil, nil, nil, nil, nil)
 	runTestFile := runmatlabtestfile.New(nil, nil, nil, nil)
 
@@ -29,6 +33,8 @@ func Definitions() []Definition {
 		{Name: detectToolboxes.Name(), Description: detectToolboxes.Description()},
 		{Name: evalCode.Name(), Description: evalCode.Description()},
 		{Name: forkedMCPVersion.Name(), Description: forkedMCPVersion.Description()},
+		{Name: pollCommands.Name(), Description: pollCommands.Description()},
+		{Name: queueCommand.Name(), Description: queueCommand.Description()},
 		{Name: runFile.Name(), Description: runFile.Description()},
 		{Name: runTestFile.Name(), Description: runTestFile.Description()},
 	}

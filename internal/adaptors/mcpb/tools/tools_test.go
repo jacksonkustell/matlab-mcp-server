@@ -20,13 +20,15 @@ func TestDefinitions_HappyPath(t *testing.T) {
 	})
 
 	// Assert
-	require.Len(t, defs, 6)
+	require.Len(t, defs, 8)
 
 	expectedNames := []string{
 		"check_matlab_code",
 		"detect_matlab_toolboxes",
 		"evaluate_matlab_code",
 		"get_forked_mcp_version",
+		"poll_matlab_commands",
+		"queue_matlab_command",
 		"run_matlab_file",
 		"run_matlab_test_file",
 	}
