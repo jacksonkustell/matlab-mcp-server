@@ -70,6 +70,7 @@ import (
 	runmatlabfilesinglesessiontool "github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/singlesession/runmatlabfile"
 	runmatlabtestfilesinglesessiontool "github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/singlesession/runmatlabtestfile"
 	"github.com/matlab/matlab-mcp-server/internal/adaptors/messagecatalog"
+	monitoringtcp "github.com/matlab/matlab-mcp-server/internal/adaptors/monitoring/tcp"
 	osadaptor "github.com/matlab/matlab-mcp-server/internal/adaptors/os"
 	"github.com/matlab/matlab-mcp-server/internal/adaptors/resourcelimit"
 	"github.com/matlab/matlab-mcp-server/internal/adaptors/telemetry"
@@ -291,11 +292,17 @@ func Initialize(serverDefinition ApplicationDefinition) *Application {
 		evalmatlabcode.New,
 		wire.Bind(new(evalmatlabcode.PathValidator), new(*pathvalidator.PathValidator)),
 
+		// TCP Monitoring Receiver
+		monitoringtcp.New,
+		wire.Bind(new(monitoringtcp.LoggerFactory), new(*logger.Factory)),
+		wire.Bind(new(monitoringtcp.LifecycleSignaler), new(*lifecyclesignaler.LifecycleSignaler)),
+
 		// MATLAB Command Queue
 		matlabcommandqueue.New,
 		wire.Bind(new(matlabcommandqueue.LoggerFactory), new(*logger.Factory)),
 		wire.Bind(new(matlabcommandqueue.LifecycleSignaler), new(*lifecyclesignaler.LifecycleSignaler)),
 		wire.Bind(new(matlabcommandqueue.MATLABCodeEvaluator), new(*evalmatlabcode.Usecase)),
+		wire.Bind(new(matlabcommandqueue.Monitoring), new(*monitoringtcp.Receiver)),
 
 		checkmatlabcodesinglesessiontool.New,
 		wire.Bind(new(checkmatlabcodesinglesessiontool.Usecase), new(*checkmatlabcode.Usecase)),

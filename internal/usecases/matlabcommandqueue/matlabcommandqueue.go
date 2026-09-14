@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/matlab/matlab-mcp-server/internal/entities"
 	"github.com/matlab/matlab-mcp-server/internal/messages"
@@ -17,8 +16,6 @@ import (
 )
 
 const (
-	defaultMonitorInterval = time.Second
-
 	queuedStatusMessage     = "queued"
 	inProgressStatusMessage = "in progress"
 	completedStatusMessage  = "completed"
@@ -26,8 +23,9 @@ const (
 )
 
 var (
-	errCodeBlank    = errors.New("code must not be blank")
-	errQueueStopped = errors.New("MATLAB command queue is shutting down")
+	errCodeBlank                         = errors.New("code must not be blank")
+	errMonitoringSubscriptionUnavailable = errors.New("monitoring subscription was not created")
+	errQueueStopped                      = errors.New("MATLAB command queue is shutting down")
 )
 
 type Status string
@@ -49,6 +47,22 @@ type LifecycleSignaler interface {
 
 type MATLABCodeEvaluator interface {
 	Execute(ctx context.Context, sessionLogger entities.Logger, client entities.MATLABSessionClient, request evalmatlabcode.Args) (entities.EvalResponse, error)
+}
+
+// MonitoringEvent is a live monitoring message received while a command runs.
+type MonitoringEvent struct {
+	Message   string `json:"message"`
+	Timestamp string `json:"timestamp"`
+}
+
+// MonitoringSubscription stops delivery and waits for in-flight callbacks to finish.
+type MonitoringSubscription interface {
+	Unsubscribe()
+}
+
+// Monitoring delivers live monitoring events independently of their transport.
+type Monitoring interface {
+	Subscribe(onEvent func(MonitoringEvent), onError func(error)) (MonitoringSubscription, error)
 }
 
 // Command is the public snapshot of a queued MATLAB command.
@@ -77,6 +91,7 @@ type Queue struct {
 	loggerFactory LoggerFactory
 	globalMATLAB  entities.GlobalMATLAB
 	evaluator     MATLABCodeEvaluator
+	monitoring    Monitoring
 
 	mutex      sync.Mutex
 	commands   map[string]*commandRecord
@@ -90,8 +105,6 @@ type Queue struct {
 	cancelLifetime  context.CancelFunc
 	workerDone      chan struct{}
 	shutdownOnce    sync.Once
-
-	monitorInterval time.Duration
 }
 
 // New creates a process-lifetime command queue and registers a graceful shutdown hook.
@@ -99,14 +112,15 @@ func New(
 	loggerFactory LoggerFactory,
 	globalMATLAB entities.GlobalMATLAB,
 	evaluator MATLABCodeEvaluator,
+	monitoring Monitoring,
 	lifecycleSignaler LifecycleSignaler,
 ) *Queue {
 	return newQueue(
 		loggerFactory,
 		globalMATLAB,
 		evaluator,
+		monitoring,
 		lifecycleSignaler,
-		defaultMonitorInterval,
 	)
 }
 
@@ -114,11 +128,11 @@ func newQueue(
 	loggerFactory LoggerFactory,
 	globalMATLAB entities.GlobalMATLAB,
 	evaluator MATLABCodeEvaluator,
+	monitoring Monitoring,
 	lifecycleSignaler LifecycleSignaler,
-	monitorInterval time.Duration,
 ) *Queue {
-	if monitorInterval <= 0 {
-		monitorInterval = defaultMonitorInterval
+	if monitoring == nil {
+		monitoring = noopMonitoring{}
 	}
 
 	lifetimeContext, cancelLifetime := context.WithCancel(context.Background())
@@ -126,6 +140,7 @@ func newQueue(
 		loggerFactory: loggerFactory,
 		globalMATLAB:  globalMATLAB,
 		evaluator:     evaluator,
+		monitoring:    monitoring,
 
 		commands:   make(map[string]*commandRecord),
 		wakeWorker: make(chan struct{}, 1),
@@ -133,8 +148,6 @@ func newQueue(
 		lifetimeContext: lifetimeContext,
 		cancelLifetime:  cancelLifetime,
 		workerDone:      make(chan struct{}),
-
-		monitorInterval: monitorInterval,
 	}
 
 	go queue.runWorker()
@@ -305,34 +318,27 @@ func (q *Queue) execute(command Command) {
 }
 
 func (q *Queue) startMonitor(commandID string) func() {
-	monitorContext, cancelMonitor := context.WithCancel(q.lifetimeContext)
-	monitorDone := make(chan struct{})
-
-	go func() {
-		defer close(monitorDone)
-
-		ticker := time.NewTicker(q.monitorInterval)
-		defer ticker.Stop()
-
-		iteration := 0
-		for {
-			select {
-			case <-monitorContext.Done():
-				return
-			case <-ticker.C:
-				iteration++
-				q.updateMonitoringStatus(commandID, iteration)
-			}
-		}
-	}()
-
-	return func() {
-		cancelMonitor()
-		<-monitorDone
+	subscription, err := q.monitoring.Subscribe(
+		func(event MonitoringEvent) {
+			q.updateMonitoringStatus(commandID, event)
+		},
+		func(monitoringErr error) {
+			q.updateMonitoringUnavailable(commandID, monitoringErr)
+		},
+	)
+	if err != nil {
+		q.updateMonitoringUnavailable(commandID, err)
+		return func() {}
 	}
+	if subscription == nil {
+		q.updateMonitoringUnavailable(commandID, errMonitoringSubscriptionUnavailable)
+		return func() {}
+	}
+
+	return subscription.Unsubscribe
 }
 
-func (q *Queue) updateMonitoringStatus(commandID string, iteration int) {
+func (q *Queue) updateMonitoringStatus(commandID string, event MonitoringEvent) {
 	q.mutex.Lock()
 	defer q.mutex.Unlock()
 
@@ -341,7 +347,19 @@ func (q *Queue) updateMonitoringStatus(commandID string, iteration int) {
 		return
 	}
 
-	record.command.StatusMessage = fmt.Sprintf("monitoring - %d", iteration)
+	record.command.StatusMessage = fmt.Sprintf("monitoring - %s: %s", event.Timestamp, event.Message)
+}
+
+func (q *Queue) updateMonitoringUnavailable(commandID string, err error) {
+	q.mutex.Lock()
+	defer q.mutex.Unlock()
+
+	record, exists := q.commands[commandID]
+	if !exists || record.command.Status != StatusInProgress {
+		return
+	}
+
+	record.command.StatusMessage = fmt.Sprintf("monitoring unavailable: %v", err)
 }
 
 func (q *Queue) completeSuccess(commandID string, output string) {
@@ -374,3 +392,13 @@ func (q *Queue) completeFailure(commandID string, err error) {
 func isTerminal(status Status) bool {
 	return status == StatusCompleted || status == StatusFailed
 }
+
+type noopMonitoring struct{}
+
+func (noopMonitoring) Subscribe(func(MonitoringEvent), func(error)) (MonitoringSubscription, error) {
+	return noopMonitoringSubscription{}, nil
+}
+
+type noopMonitoringSubscription struct{}
+
+func (noopMonitoringSubscription) Unsubscribe() {}

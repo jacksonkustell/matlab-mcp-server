@@ -19,7 +19,7 @@ import (
 const testWaitTimeout = 2 * time.Second
 
 func TestQueue_RejectsBlankCode(t *testing.T) {
-	queue, _ := newTestQueue(t, false, defaultMonitorInterval)
+	queue, _ := newTestQueue(t, false)
 
 	result, err := queue.Enqueue(" \t\n", "")
 
@@ -29,7 +29,7 @@ func TestQueue_RejectsBlankCode(t *testing.T) {
 }
 
 func TestQueue_EnqueueReturnsWhileEvaluationIsBlocked(t *testing.T) {
-	queue, evaluator := newTestQueue(t, true, defaultMonitorInterval)
+	queue, evaluator := newTestQueue(t, true)
 
 	first, err := queue.Enqueue("first", "")
 	require.NoError(t, err)
@@ -61,7 +61,7 @@ func TestQueue_EnqueueReturnsWhileEvaluationIsBlocked(t *testing.T) {
 }
 
 func TestQueue_TransitionsToCompletedAndConsumesTerminalCommand(t *testing.T) {
-	queue, evaluator := newTestQueue(t, true, defaultMonitorInterval)
+	queue, evaluator := newTestQueue(t, true)
 	evaluator.responses["disp('done')"] = entities.EvalResponse{ConsoleOutput: "done\n"}
 
 	result, err := queue.Enqueue("disp('done')", `C:\project`)
@@ -88,7 +88,7 @@ func TestQueue_TransitionsToCompletedAndConsumesTerminalCommand(t *testing.T) {
 }
 
 func TestQueue_RecordsFailureAndConsumesItOnce(t *testing.T) {
-	queue, evaluator := newTestQueue(t, false, defaultMonitorInterval)
+	queue, evaluator := newTestQueue(t, false)
 	expectedError := errors.New("MATLAB command failed")
 	evaluator.errors["badCommand"] = expectedError
 
@@ -108,7 +108,7 @@ func TestQueue_RecordsFailureAndConsumesItOnce(t *testing.T) {
 }
 
 func TestQueue_ExecutesCommandsInFIFOOrderWithOneEvaluationAtATime(t *testing.T) {
-	queue, evaluator := newTestQueue(t, true, defaultMonitorInterval)
+	queue, evaluator := newTestQueue(t, true)
 
 	first, err := queue.Enqueue("first", "")
 	require.NoError(t, err)
@@ -144,35 +144,99 @@ func TestQueue_ExecutesCommandsInFIFOOrderWithOneEvaluationAtATime(t *testing.T)
 	})
 }
 
-func TestQueue_MonitorStartsForInProgressCommandAndStopsBeforeCompletion(t *testing.T) {
-	const monitorInterval = 5 * time.Millisecond
-
-	queue, evaluator := newTestQueue(t, true, monitorInterval)
+func TestQueue_UpdatesStatusFromLiveMonitoringEvents(t *testing.T) {
+	monitoring := newTestMonitoring()
+	queue, evaluator := newTestQueueWithMonitoring(t, true, monitoring)
 	result, err := queue.Enqueue("longRunningCommand", "")
 	require.NoError(t, err)
 	waitForEvaluation(t, evaluator, "longRunningCommand")
 
-	eventually(t, func() bool {
-		command, exists := snapshotCommand(queue, result.CommandID)
-		return exists && command.Status == StatusInProgress && command.StatusMessage != inProgressStatusMessage
+	monitoring.Emit(MonitoringEvent{
+		Timestamp: "2026-09-14T12:34:56.789-04:00",
+		Message:   "MATLAB is still working",
 	})
 
-	monitored, exists := snapshotCommand(queue, result.CommandID)
-	require.True(t, exists)
-	assert.Regexp(t, `^monitoring - [1-9][0-9]*$`, monitored.StatusMessage)
+	monitored := waitForStatusMessage(t, queue, result.CommandID, "monitoring - 2026-09-14T12:34:56.789-04:00: MATLAB is still working")
+	assert.Equal(t, StatusInProgress, monitored.Status)
 
 	evaluator.release <- struct{}{}
 	completed := waitForTerminalSnapshot(t, queue, result.CommandID)
 	assert.Equal(t, completedStatusMessage, completed.StatusMessage)
 
-	time.Sleep(3 * monitorInterval)
-	afterMonitorStopped, exists := snapshotCommand(queue, result.CommandID)
+	monitoring.InvokeLatestEventHandler(MonitoringEvent{
+		Timestamp: "2026-09-14T12:34:58.789-04:00",
+		Message:   "late update",
+	})
+	afterLateEvent, exists := snapshotCommand(queue, result.CommandID)
 	require.True(t, exists)
-	assert.Equal(t, completed, afterMonitorStopped)
+	assert.Equal(t, completed, afterLateEvent)
+}
+
+func TestQueue_ContinuesEvaluationWhenMonitoringCannotStart(t *testing.T) {
+	expectedError := errors.New("address already in use")
+	monitoring := newTestMonitoring()
+	monitoring.subscribeErr = expectedError
+	queue, evaluator := newTestQueueWithMonitoring(t, true, monitoring)
+
+	result, err := queue.Enqueue("longRunningCommand", "")
+	require.NoError(t, err)
+	waitForEvaluation(t, evaluator, "longRunningCommand")
+
+	unavailable := waitForStatusMessage(t, queue, result.CommandID, "monitoring unavailable: address already in use")
+	assert.Equal(t, StatusInProgress, unavailable.Status)
+
+	evaluator.release <- struct{}{}
+	completed := waitForTerminalSnapshot(t, queue, result.CommandID)
+	assert.Equal(t, StatusCompleted, completed.Status)
+	assert.Equal(t, completedStatusMessage, completed.StatusMessage)
+}
+
+func TestQueue_ContinuesEvaluationWhenMonitoringReportsAReadFailure(t *testing.T) {
+	monitoring := newTestMonitoring()
+	queue, evaluator := newTestQueueWithMonitoring(t, true, monitoring)
+
+	result, err := queue.Enqueue("longRunningCommand", "")
+	require.NoError(t, err)
+	waitForEvaluation(t, evaluator, "longRunningCommand")
+
+	monitoring.EmitError(errors.New("connection reset by peer"))
+	unavailable := waitForStatusMessage(t, queue, result.CommandID, "monitoring unavailable: connection reset by peer")
+	assert.Equal(t, StatusInProgress, unavailable.Status)
+
+	evaluator.release <- struct{}{}
+	completed := waitForTerminalSnapshot(t, queue, result.CommandID)
+	assert.Equal(t, StatusCompleted, completed.Status)
+	assert.Equal(t, completedStatusMessage, completed.StatusMessage)
+}
+
+func TestQueue_UnsubscribesBeforeSettingTerminalStatus(t *testing.T) {
+	monitoring := newTestMonitoring()
+	monitoring.BlockUnsubscribe()
+	queue, evaluator := newTestQueueWithMonitoring(t, true, monitoring)
+
+	result, err := queue.Enqueue("longRunningCommand", "")
+	require.NoError(t, err)
+	waitForEvaluation(t, evaluator, "longRunningCommand")
+
+	evaluator.release <- struct{}{}
+
+	select {
+	case <-monitoring.unsubscribeStarted:
+	case <-time.After(testWaitTimeout):
+		t.Fatal("timed out waiting for the queue to unsubscribe from monitoring")
+	}
+
+	inProgress, exists := snapshotCommand(queue, result.CommandID)
+	require.True(t, exists)
+	assert.Equal(t, StatusInProgress, inProgress.Status)
+
+	monitoring.ReleaseUnsubscribe()
+	completed := waitForTerminalSnapshot(t, queue, result.CommandID)
+	assert.Equal(t, StatusCompleted, completed.Status)
 }
 
 func TestQueue_PollAndWorkerUpdatesAreSafeWhenConcurrent(t *testing.T) {
-	queue, evaluator := newTestQueue(t, false, defaultMonitorInterval)
+	queue, evaluator := newTestQueue(t, false)
 
 	for i := 0; i < 25; i++ {
 		_, err := queue.Enqueue("command", "")
@@ -203,8 +267,8 @@ func TestQueue_ShutdownFunctionStopsBlockedWorker(t *testing.T) {
 		testLoggerFactory{},
 		&testGlobalMATLAB{client: testMATLABSessionClient{}},
 		evaluator,
+		newTestMonitoring(),
 		lifecycleSignaler,
-		defaultMonitorInterval,
 	)
 	t.Cleanup(func() {
 		require.NoError(t, queue.Shutdown())
@@ -218,7 +282,13 @@ func TestQueue_ShutdownFunctionStopsBlockedWorker(t *testing.T) {
 	require.NoError(t, lifecycleSignaler.shutdownFunction())
 }
 
-func newTestQueue(t *testing.T, evaluatorBlocks bool, monitorInterval time.Duration) (*Queue, *testEvaluator) {
+func newTestQueue(t *testing.T, evaluatorBlocks bool) (*Queue, *testEvaluator) {
+	t.Helper()
+
+	return newTestQueueWithMonitoring(t, evaluatorBlocks, newTestMonitoring())
+}
+
+func newTestQueueWithMonitoring(t *testing.T, evaluatorBlocks bool, monitoring Monitoring) (*Queue, *testEvaluator) {
 	t.Helper()
 
 	evaluator := newTestEvaluator(evaluatorBlocks)
@@ -227,8 +297,8 @@ func newTestQueue(t *testing.T, evaluatorBlocks bool, monitorInterval time.Durat
 		testLoggerFactory{},
 		&testGlobalMATLAB{client: testMATLABSessionClient{}},
 		evaluator,
+		monitoring,
 		lifecycleSignaler,
-		monitorInterval,
 	)
 	t.Cleanup(func() {
 		require.NoError(t, queue.Shutdown())
@@ -267,6 +337,18 @@ func waitForTerminalSnapshot(t *testing.T, queue *Queue, commandID string) Comma
 		var exists bool
 		command, exists = snapshotCommand(queue, commandID)
 		return exists && isTerminal(command.Status)
+	})
+	return command
+}
+
+func waitForStatusMessage(t *testing.T, queue *Queue, commandID string, expectedStatusMessage string) Command {
+	t.Helper()
+
+	var command Command
+	eventually(t, func() bool {
+		var exists bool
+		command, exists = snapshotCommand(queue, commandID)
+		return exists && command.StatusMessage == expectedStatusMessage
 	})
 	return command
 }
@@ -330,6 +412,128 @@ type testLifecycleSignaler struct {
 
 func (s *testLifecycleSignaler) AddShutdownFunction(shutdownFunction func() error) {
 	s.shutdownFunction = shutdownFunction
+}
+
+type testMonitoring struct {
+	mutex sync.Mutex
+
+	subscribeErr      error
+	subscription      *testMonitoringSubscription
+	latestEventHandle func(MonitoringEvent)
+
+	unsubscribeStarted chan struct{}
+	unsubscribeRelease chan struct{}
+	releaseOnce        sync.Once
+}
+
+func newTestMonitoring() *testMonitoring {
+	return &testMonitoring{}
+}
+
+func (m *testMonitoring) Subscribe(
+	onEvent func(MonitoringEvent),
+	onError func(error),
+) (MonitoringSubscription, error) {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+
+	if m.subscribeErr != nil {
+		return nil, m.subscribeErr
+	}
+
+	subscription := &testMonitoringSubscription{
+		monitoring: m,
+		onEvent:    onEvent,
+		onError:    onError,
+	}
+	m.subscription = subscription
+	m.latestEventHandle = onEvent
+
+	return subscription, nil
+}
+
+func (m *testMonitoring) Emit(event MonitoringEvent) {
+	m.mutex.Lock()
+	var onEvent func(MonitoringEvent)
+	if m.subscription != nil {
+		onEvent = m.subscription.onEvent
+	}
+	m.mutex.Unlock()
+
+	if onEvent != nil {
+		onEvent(event)
+	}
+}
+
+func (m *testMonitoring) EmitError(err error) {
+	m.mutex.Lock()
+	var onError func(error)
+	if m.subscription != nil {
+		onError = m.subscription.onError
+	}
+	m.mutex.Unlock()
+
+	if onError != nil {
+		onError(err)
+	}
+}
+
+func (m *testMonitoring) InvokeLatestEventHandler(event MonitoringEvent) {
+	m.mutex.Lock()
+	onEvent := m.latestEventHandle
+	m.mutex.Unlock()
+
+	if onEvent != nil {
+		onEvent(event)
+	}
+}
+
+func (m *testMonitoring) BlockUnsubscribe() {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+
+	m.unsubscribeStarted = make(chan struct{})
+	m.unsubscribeRelease = make(chan struct{})
+}
+
+func (m *testMonitoring) ReleaseUnsubscribe() {
+	m.mutex.Lock()
+	unsubscribeRelease := m.unsubscribeRelease
+	m.mutex.Unlock()
+
+	m.releaseOnce.Do(func() {
+		close(unsubscribeRelease)
+	})
+}
+
+type testMonitoringSubscription struct {
+	monitoring *testMonitoring
+	onEvent    func(MonitoringEvent)
+	onError    func(error)
+
+	once sync.Once
+}
+
+func (s *testMonitoringSubscription) Unsubscribe() {
+	s.once.Do(func() {
+		s.monitoring.mutex.Lock()
+		unsubscribeStarted := s.monitoring.unsubscribeStarted
+		unsubscribeRelease := s.monitoring.unsubscribeRelease
+		s.monitoring.mutex.Unlock()
+
+		if unsubscribeStarted != nil {
+			close(unsubscribeStarted)
+		}
+		if unsubscribeRelease != nil {
+			<-unsubscribeRelease
+		}
+
+		s.monitoring.mutex.Lock()
+		if s.monitoring.subscription == s {
+			s.monitoring.subscription = nil
+		}
+		s.monitoring.mutex.Unlock()
+	})
 }
 
 type testGlobalMATLAB struct {

@@ -69,6 +69,7 @@ import (
 	runmatlabfile2 "github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/singlesession/runmatlabfile"
 	runmatlabtestfile2 "github.com/matlab/matlab-mcp-server/internal/adaptors/mcp/tools/singlesession/runmatlabtestfile"
 	"github.com/matlab/matlab-mcp-server/internal/adaptors/messagecatalog"
+	"github.com/matlab/matlab-mcp-server/internal/adaptors/monitoring/tcp"
 	"github.com/matlab/matlab-mcp-server/internal/adaptors/os"
 	"github.com/matlab/matlab-mcp-server/internal/adaptors/resourcelimit"
 	"github.com/matlab/matlab-mcp-server/internal/adaptors/telemetry"
@@ -179,7 +180,8 @@ func Initialize(serverDefinition ApplicationDefinition) *Application {
 	runmatlabfileTool := runmatlabfile2.New(loggerFactory, telemetryFactory, factory, runmatlabfileUsecase, globalMATLAB)
 	runmatlabtestfileUsecase := runmatlabtestfile.New(pathValidator)
 	runmatlabtestfileTool := runmatlabtestfile2.New(loggerFactory, telemetryFactory, runmatlabtestfileUsecase, globalMATLAB)
-	queue := matlabcommandqueue.New(loggerFactory, globalMATLAB, evalmatlabcodeUsecase, lifecycleSignaler)
+	receiver := tcp.New(loggerFactory, lifecycleSignaler)
+	queue := matlabcommandqueue.New(loggerFactory, globalMATLAB, evalmatlabcodeUsecase, receiver, lifecycleSignaler)
 	queuematlabcommandTool := queuematlabcommand.New(loggerFactory, telemetryFactory, queue)
 	pollmatlabcommandsTool := pollmatlabcommands.New(loggerFactory, telemetryFactory, queue)
 	resource := codingguidelines.New(loggerFactory)
