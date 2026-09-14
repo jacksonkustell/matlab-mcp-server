@@ -43,24 +43,31 @@ func New(
 }
 
 func (g *GlobalMATLAB) Client(ctx context.Context, logger entities.Logger) (entities.MATLABSessionClient, error) {
+	client, _, err := g.ClientWithSessionID(ctx, logger)
+	return client, err
+}
+
+// ClientWithSessionID gets the shared MATLAB client and the identity of the
+// MATLAB session that owns it.
+func (g *GlobalMATLAB) ClientWithSessionID(ctx context.Context, logger entities.Logger) (entities.MATLABSessionClient, entities.SessionID, error) {
 	g.lock.Lock()
 	defer g.lock.Unlock()
 
 	if g.startSessionError != nil {
-		return nil, g.startSessionError
+		return nil, entities.SessionID(0), g.startSessionError
 	}
 
 	return g.getOrCreateClient(ctx, logger)
 }
 
-func (g *GlobalMATLAB) getOrCreateClient(ctx context.Context, logger entities.Logger) (entities.MATLABSessionClient, error) {
+func (g *GlobalMATLAB) getOrCreateClient(ctx context.Context, logger entities.Logger) (entities.MATLABSessionClient, entities.SessionID, error) {
 	var sessionIDZeroValue entities.SessionID
 
 	// Start MATLAB if we don't have a session
 	if g.sessionID == sessionIDZeroValue {
 		sessionID, err := g.startMATLABSessionAndCacheUnrecoverableErrors(ctx, logger)
 		if err != nil {
-			return nil, err
+			return nil, sessionIDZeroValue, err
 		}
 		g.sessionID = sessionID
 	}
@@ -76,14 +83,17 @@ func (g *GlobalMATLAB) getOrCreateClient(ctx context.Context, logger entities.Lo
 		sessionID, err := g.restartMATLABSession(ctx, logger)
 		if err != nil {
 			g.sessionID = sessionIDZeroValue
-			return nil, err
+			return nil, sessionIDZeroValue, err
 		}
 		g.sessionID = sessionID
 
-		return g.matlabManagerAdaptor.GetMATLABSessionClient(ctx, logger, g.sessionID)
+		client, err = g.matlabManagerAdaptor.GetMATLABSessionClient(ctx, logger, g.sessionID)
+		if err != nil {
+			return nil, sessionIDZeroValue, err
+		}
 	}
 
-	return client, nil
+	return client, g.sessionID, nil
 }
 
 func (g *GlobalMATLAB) restartMATLABSession(ctx context.Context, logger entities.Logger) (entities.SessionID, error) {

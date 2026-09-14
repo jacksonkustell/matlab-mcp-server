@@ -175,7 +175,7 @@ func TestQueue_UpdatesStatusFromLiveMonitoringEvents(t *testing.T) {
 func TestQueue_ContinuesEvaluationWhenMonitoringCannotStart(t *testing.T) {
 	expectedError := errors.New("address already in use")
 	monitoring := newTestMonitoring()
-	monitoring.subscribeErr = expectedError
+	monitoring.ensureErr = expectedError
 	queue, evaluator := newTestQueueWithMonitoring(t, true, monitoring)
 
 	result, err := queue.Enqueue("longRunningCommand", "")
@@ -189,6 +189,48 @@ func TestQueue_ContinuesEvaluationWhenMonitoringCannotStart(t *testing.T) {
 	completed := waitForTerminalSnapshot(t, queue, result.CommandID)
 	assert.Equal(t, StatusCompleted, completed.Status)
 	assert.Equal(t, completedStatusMessage, completed.StatusMessage)
+}
+
+func TestQueue_RetriesFailedMonitoringRegistrationForTheNextCommand(t *testing.T) {
+	// Arrange
+	firstRegistrationError := errors.New("temporary registration failure")
+	monitoring := newTestMonitoring()
+	monitoring.ensureErrors = []error{firstRegistrationError, nil}
+	queue, evaluator := newTestQueueWithMonitoring(t, true, monitoring)
+
+	// Act
+	first, err := queue.Enqueue("first", "")
+	require.NoError(t, err)
+	waitForEvaluation(t, evaluator, "first")
+	waitForStatusMessage(t, queue, first.CommandID, "monitoring unavailable: temporary registration failure")
+	evaluator.release <- struct{}{}
+	waitForTerminalSnapshot(t, queue, first.CommandID)
+
+	second, err := queue.Enqueue("second", "")
+	require.NoError(t, err)
+	waitForEvaluation(t, evaluator, "second")
+	evaluator.release <- struct{}{}
+	waitForTerminalSnapshot(t, queue, second.CommandID)
+
+	// Assert
+	assert.Equal(t, 2, monitoring.EnsureCallCount())
+	assert.Equal(t, []entities.SessionID{1, 1}, monitoring.EnsuredSessionIDs())
+}
+
+func TestQueue_PassesTheCurrentMATLABSessionToMonitoringRegistration(t *testing.T) {
+	// Arrange
+	monitoring := newTestMonitoring()
+	queue, evaluator := newTestQueueWithMonitoring(t, true, monitoring)
+
+	// Act
+	_, err := queue.Enqueue("longRunningCommand", "")
+	require.NoError(t, err)
+	waitForEvaluation(t, evaluator, "longRunningCommand")
+
+	// Assert
+	assert.Equal(t, []entities.SessionID{1}, monitoring.EnsuredSessionIDs())
+
+	evaluator.release <- struct{}{}
 }
 
 func TestQueue_ContinuesEvaluationWhenMonitoringReportsAReadFailure(t *testing.T) {
@@ -265,7 +307,7 @@ func TestQueue_ShutdownFunctionStopsBlockedWorker(t *testing.T) {
 	lifecycleSignaler := &testLifecycleSignaler{}
 	queue := newQueue(
 		testLoggerFactory{},
-		&testGlobalMATLAB{client: testMATLABSessionClient{}},
+		&testGlobalMATLAB{client: testMATLABSessionClient{}, sessionID: 1},
 		evaluator,
 		newTestMonitoring(),
 		lifecycleSignaler,
@@ -295,7 +337,7 @@ func newTestQueueWithMonitoring(t *testing.T, evaluatorBlocks bool, monitoring M
 	lifecycleSignaler := &testLifecycleSignaler{}
 	queue := newQueue(
 		testLoggerFactory{},
-		&testGlobalMATLAB{client: testMATLABSessionClient{}},
+		&testGlobalMATLAB{client: testMATLABSessionClient{}, sessionID: 1},
 		evaluator,
 		monitoring,
 		lifecycleSignaler,
@@ -417,6 +459,10 @@ func (s *testLifecycleSignaler) AddShutdownFunction(shutdownFunction func() erro
 type testMonitoring struct {
 	mutex sync.Mutex
 
+	ensureErr         error
+	ensureErrors      []error
+	ensureCalls       int
+	ensuredSessionIDs []entities.SessionID
 	subscribeErr      error
 	subscription      *testMonitoringSubscription
 	latestEventHandle func(MonitoringEvent)
@@ -428,6 +474,24 @@ type testMonitoring struct {
 
 func newTestMonitoring() *testMonitoring {
 	return &testMonitoring{}
+}
+
+func (m *testMonitoring) EnsureRegistered(
+	_ context.Context,
+	_ entities.Logger,
+	_ entities.MATLABSessionClient,
+	sessionID entities.SessionID,
+) error {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+
+	m.ensureCalls++
+	m.ensuredSessionIDs = append(m.ensuredSessionIDs, sessionID)
+	if len(m.ensureErrors) >= m.ensureCalls {
+		return m.ensureErrors[m.ensureCalls-1]
+	}
+
+	return m.ensureErr
 }
 
 func (m *testMonitoring) Subscribe(
@@ -450,6 +514,20 @@ func (m *testMonitoring) Subscribe(
 	m.latestEventHandle = onEvent
 
 	return subscription, nil
+}
+
+func (m *testMonitoring) EnsureCallCount() int {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+
+	return m.ensureCalls
+}
+
+func (m *testMonitoring) EnsuredSessionIDs() []entities.SessionID {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+
+	return append([]entities.SessionID(nil), m.ensuredSessionIDs...)
 }
 
 func (m *testMonitoring) Emit(event MonitoringEvent) {
@@ -537,11 +615,12 @@ func (s *testMonitoringSubscription) Unsubscribe() {
 }
 
 type testGlobalMATLAB struct {
-	client entities.MATLABSessionClient
+	client    entities.MATLABSessionClient
+	sessionID entities.SessionID
 }
 
-func (m *testGlobalMATLAB) Client(context.Context, entities.Logger) (entities.MATLABSessionClient, error) {
-	return m.client, nil
+func (m *testGlobalMATLAB) ClientWithSessionID(context.Context, entities.Logger) (entities.MATLABSessionClient, entities.SessionID, error) {
+	return m.client, m.sessionID, nil
 }
 
 type testMATLABSessionClient struct{}

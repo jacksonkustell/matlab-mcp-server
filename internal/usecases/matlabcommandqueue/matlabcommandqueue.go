@@ -49,6 +49,12 @@ type MATLABCodeEvaluator interface {
 	Execute(ctx context.Context, sessionLogger entities.Logger, client entities.MATLABSessionClient, request evalmatlabcode.Args) (entities.EvalResponse, error)
 }
 
+// MATLABClientProvider supplies the shared MATLAB client and the identity of
+// the session that owns it.
+type MATLABClientProvider interface {
+	ClientWithSessionID(ctx context.Context, logger entities.Logger) (entities.MATLABSessionClient, entities.SessionID, error)
+}
+
 // MonitoringEvent is a live monitoring message received while a command runs.
 type MonitoringEvent struct {
 	Message   string `json:"message"`
@@ -62,6 +68,7 @@ type MonitoringSubscription interface {
 
 // Monitoring delivers live monitoring events independently of their transport.
 type Monitoring interface {
+	EnsureRegistered(ctx context.Context, logger entities.Logger, client entities.MATLABSessionClient, sessionID entities.SessionID) error
 	Subscribe(onEvent func(MonitoringEvent), onError func(error)) (MonitoringSubscription, error)
 }
 
@@ -89,7 +96,7 @@ type commandRecord struct {
 // Queue owns all command records and processes them in first-in, first-out order.
 type Queue struct {
 	loggerFactory LoggerFactory
-	globalMATLAB  entities.GlobalMATLAB
+	globalMATLAB  MATLABClientProvider
 	evaluator     MATLABCodeEvaluator
 	monitoring    Monitoring
 
@@ -110,7 +117,7 @@ type Queue struct {
 // New creates a process-lifetime command queue and registers a graceful shutdown hook.
 func New(
 	loggerFactory LoggerFactory,
-	globalMATLAB entities.GlobalMATLAB,
+	globalMATLAB MATLABClientProvider,
 	evaluator MATLABCodeEvaluator,
 	monitoring Monitoring,
 	lifecycleSignaler LifecycleSignaler,
@@ -126,7 +133,7 @@ func New(
 
 func newQueue(
 	loggerFactory LoggerFactory,
-	globalMATLAB entities.GlobalMATLAB,
+	globalMATLAB MATLABClientProvider,
 	evaluator MATLABCodeEvaluator,
 	monitoring Monitoring,
 	lifecycleSignaler LifecycleSignaler,
@@ -281,21 +288,19 @@ func (q *Queue) dequeue() (Command, bool) {
 }
 
 func (q *Queue) execute(command Command) {
-	stopMonitor := q.startMonitor(command.CommandID)
-
 	logger, loggerErr := q.loggerFactory.GetGlobalLogger()
 	if loggerErr != nil {
-		stopMonitor()
 		q.completeFailure(command.CommandID, loggerErr)
 		return
 	}
 
-	client, err := q.globalMATLAB.Client(q.lifetimeContext, logger)
+	client, sessionID, err := q.globalMATLAB.ClientWithSessionID(q.lifetimeContext, logger)
 	if err != nil {
-		stopMonitor()
 		q.completeFailure(command.CommandID, err)
 		return
 	}
+
+	stopMonitor := q.startMonitor(command.CommandID, logger, client, sessionID)
 
 	response, err := q.evaluator.Execute(
 		q.lifetimeContext,
@@ -317,7 +322,16 @@ func (q *Queue) execute(command Command) {
 	q.completeSuccess(command.CommandID, response.ConsoleOutput)
 }
 
-func (q *Queue) startMonitor(commandID string) func() {
+func (q *Queue) startMonitor(
+	commandID string,
+	logger entities.Logger,
+	client entities.MATLABSessionClient,
+	sessionID entities.SessionID,
+) func() {
+	if err := q.monitoring.EnsureRegistered(q.lifetimeContext, logger, client, sessionID); err != nil {
+		q.updateMonitoringUnavailable(commandID, err)
+	}
+
 	subscription, err := q.monitoring.Subscribe(
 		func(event MonitoringEvent) {
 			q.updateMonitoringStatus(commandID, event)
@@ -394,6 +408,10 @@ func isTerminal(status Status) bool {
 }
 
 type noopMonitoring struct{}
+
+func (noopMonitoring) EnsureRegistered(context.Context, entities.Logger, entities.MATLABSessionClient, entities.SessionID) error {
+	return nil
+}
 
 func (noopMonitoring) Subscribe(func(MonitoringEvent), func(error)) (MonitoringSubscription, error) {
 	return noopMonitoringSubscription{}, nil

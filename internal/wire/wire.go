@@ -303,6 +303,7 @@ func Initialize(serverDefinition ApplicationDefinition) *Application {
 		wire.Bind(new(matlabcommandqueue.LifecycleSignaler), new(*lifecyclesignaler.LifecycleSignaler)),
 		wire.Bind(new(matlabcommandqueue.MATLABCodeEvaluator), new(*evalmatlabcode.Usecase)),
 		wire.Bind(new(matlabcommandqueue.Monitoring), new(*monitoringtcp.Receiver)),
+		wire.Bind(new(matlabcommandqueue.MATLABClientProvider), new(*globalmatlab.GlobalMATLAB)),
 
 		checkmatlabcodesinglesessiontool.New,
 		wire.Bind(new(checkmatlabcodesinglesessiontool.Usecase), new(*checkmatlabcode.Usecase)),

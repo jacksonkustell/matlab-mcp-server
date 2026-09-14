@@ -85,7 +85,7 @@ func (s *LazyLoadTestSuite) TestGetForkedMCPVersion_DoesNotStartMATLAB() {
 
 	text, err := session.GetTextContent(result)
 	s.Require().NoError(err)
-	s.Equal("0.06", text)
+	s.Equal("0.07", text)
 
 	instanceEvents, err := session.ReadInstanceEvents()
 	s.Require().NoError(err)

@@ -159,7 +159,7 @@ ci-lint: lint matlab-lint
 
 ci-check-generated: check-mockery check-wire check-embedded-matlab-addon
 
-ci-unit-tests:
+ci-unit-tests: sync-matlab-mcp
 	go test $(RACE_FLAG) -json -count=1 -coverprofile cover.out $(UNIT_TEST_PKGS)
 	matlab -batch "cd(fullfile('$(CURDIR)', 'matlab', 'matlab_mcp_toolbox')); buildtool clean unit-tests integration-tests;"
 
@@ -216,7 +216,7 @@ lint:
 fix-lint:
 	go tool golangci-lint run ./... --fix
 
-matlab-lint:
+matlab-lint: sync-matlab-mcp
 	matlab -batch "cd(fullfile('$(CURDIR)', 'matlab', 'matlab_mcp_toolbox')); buildtool clean lint;"
 
 # =============================================================================
@@ -351,7 +351,7 @@ mcp-inspector:
 unit-tests:
 	go tool gotestsum --packages="$(UNIT_TEST_PKGS)" -- -race -coverprofile cover.out
 
-matlab-unit-tests:
+matlab-unit-tests: sync-matlab-mcp
 	matlab -batch "cd(fullfile('$(CURDIR)', 'matlab', 'matlab_mcp_toolbox')); buildtool clean unit-tests integration-tests;"
 
 ifeq ($(OS),Windows_NT)

@@ -4,9 +4,11 @@ package tcp
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"net"
+	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -23,6 +25,7 @@ const receiverTestTimeout = 2 * time.Second
 func TestReceiver_DeliversValidMonitoringEvent(t *testing.T) {
 	receiver, _ := newTestReceiver(t)
 	events := make(chan matlabcommandqueue.MonitoringEvent, 1)
+	ensureReceiverRegistered(t, receiver, 1)
 
 	subscription, err := receiver.Subscribe(func(event matlabcommandqueue.MonitoringEvent) {
 		events <- event
@@ -50,6 +53,7 @@ func TestReceiver_DeliversValidMonitoringEvent(t *testing.T) {
 func TestReceiver_DiscardsMalformedMessagesAndContinuesReading(t *testing.T) {
 	receiver, logger := newTestReceiver(t)
 	events := make(chan matlabcommandqueue.MonitoringEvent, 1)
+	ensureReceiverRegistered(t, receiver, 1)
 
 	subscription, err := receiver.Subscribe(func(event matlabcommandqueue.MonitoringEvent) {
 		events <- event
@@ -82,6 +86,7 @@ func TestReceiver_DiscardsMalformedMessagesAndContinuesReading(t *testing.T) {
 func TestReceiver_DropsMessagesAfterUnsubscribe(t *testing.T) {
 	receiver, _ := newTestReceiver(t)
 	events := make(chan matlabcommandqueue.MonitoringEvent, 1)
+	ensureReceiverRegistered(t, receiver, 1)
 
 	subscription, err := receiver.Subscribe(func(event matlabcommandqueue.MonitoringEvent) {
 		events <- event
@@ -114,6 +119,7 @@ func TestReceiver_UnsubscribeWaitsForInFlightEventCallback(t *testing.T) {
 			close(callbackRelease)
 		})
 	}
+	ensureReceiverRegistered(t, receiver, 1)
 
 	subscription, err := receiver.Subscribe(func(matlabcommandqueue.MonitoringEvent) {
 		close(callbackStarted)
@@ -161,6 +167,7 @@ func TestReceiver_UnsubscribeWaitsForInFlightEventCallback(t *testing.T) {
 func TestReceiver_ReportsReadFailuresToTheActiveSubscription(t *testing.T) {
 	receiver, logger := newTestReceiver(t)
 	monitoringErrors := make(chan error, 1)
+	ensureReceiverRegistered(t, receiver, 1)
 
 	subscription, err := receiver.Subscribe(nil, func(monitoringErr error) {
 		monitoringErrors <- monitoringErr
@@ -188,6 +195,7 @@ func TestReceiver_ReportsReadFailuresToTheActiveSubscription(t *testing.T) {
 
 func TestReceiver_ShutdownClosesActiveConnections(t *testing.T) {
 	receiver, _ := newTestReceiver(t)
+	client := ensureReceiverRegistered(t, receiver, 1)
 
 	subscription, err := receiver.Subscribe(nil, nil)
 	require.NoError(t, err)
@@ -209,6 +217,7 @@ func TestReceiver_ShutdownClosesActiveConnections(t *testing.T) {
 	buffer := make([]byte, 1)
 	_, err = connection.Read(buffer)
 	require.Error(t, err)
+	assertUnregistrationRequest(t, receiver, client.FEvalRequests())
 }
 
 func TestReceiver_RegistersLifecycleCleanup(t *testing.T) {
@@ -219,6 +228,7 @@ func TestReceiver_RegistersLifecycleCleanup(t *testing.T) {
 	t.Cleanup(func() {
 		require.NoError(t, receiver.Shutdown())
 	})
+	client := ensureReceiverRegistered(t, receiver, 1)
 
 	subscription, err := receiver.Subscribe(nil, nil)
 	require.NoError(t, err)
@@ -236,6 +246,7 @@ func TestReceiver_RegistersLifecycleCleanup(t *testing.T) {
 	if connection != nil {
 		_ = connection.Close()
 	}
+	assertUnregistrationRequest(t, receiver, client.FEvalRequests())
 }
 
 func TestReceiver_ReturnsBindFailuresWithoutCreatingASubscription(t *testing.T) {
@@ -252,11 +263,73 @@ func TestReceiver_ReturnsBindFailuresWithoutCreatingASubscription(t *testing.T) 
 		require.NoError(t, receiver.Shutdown())
 	})
 
-	subscription, err := receiver.Subscribe(nil, nil)
+	client := &recordingMATLABSessionClient{}
+	err := receiver.EnsureRegistered(t.Context(), newRecordingLogger(), client, 1)
 
-	require.Nil(t, subscription)
 	require.ErrorIs(t, err, expectedError)
+	assert.Empty(t, client.FEvalRequests())
 	assert.Equal(t, 1, logger.WarningCount())
+}
+
+func TestReceiver_UsesIndependentDynamicListeners(t *testing.T) {
+	receiver1, _ := newTestReceiver(t)
+	receiver2, _ := newTestReceiver(t)
+
+	client1 := ensureReceiverRegistered(t, receiver1, 1)
+	client2 := ensureReceiverRegistered(t, receiver2, 1)
+
+	assert.NotEqual(t, receiverAddress(t, receiver1), receiverAddress(t, receiver2))
+	assert.NotEqual(t, receiver1.registrationID, receiver2.registrationID)
+	assertRegistrationRequest(t, receiver1, client1.FEvalRequests())
+	assertRegistrationRequest(t, receiver2, client2.FEvalRequests())
+}
+
+func TestReceiver_RegistersOnlyOncePerSessionAndReregistersForANewSession(t *testing.T) {
+	receiver, _ := newTestReceiver(t)
+	client := &recordingMATLABSessionClient{}
+	logger := newRecordingLogger()
+
+	require.NoError(t, receiver.EnsureRegistered(t.Context(), logger, client, 1))
+	require.NoError(t, receiver.EnsureRegistered(t.Context(), logger, client, 1))
+	require.NoError(t, receiver.EnsureRegistered(t.Context(), logger, client, 2))
+
+	requests := client.FEvalRequests()
+	require.Len(t, requests, 2)
+	assertRegistrationRequest(t, receiver, requests[:1])
+	assertRegistrationRequest(t, receiver, requests[1:])
+}
+
+func TestReceiver_RetriesFailedRegistration(t *testing.T) {
+	receiver, _ := newTestReceiver(t)
+	expectedError := errors.New("MATLAB registration failed")
+	client := &recordingMATLABSessionClient{
+		fevalErrors: []error{expectedError, nil},
+	}
+	logger := newRecordingLogger()
+
+	err := receiver.EnsureRegistered(t.Context(), logger, client, 1)
+	require.ErrorIs(t, err, expectedError)
+	require.NoError(t, receiver.EnsureRegistered(t.Context(), logger, client, 1))
+
+	requests := client.FEvalRequests()
+	require.Len(t, requests, 2)
+	assertRegistrationRequest(t, receiver, requests[:1])
+	assertRegistrationRequest(t, receiver, requests[1:])
+}
+
+func TestReceiver_SubscribeOnlyAttachesAndDetachesCallbacks(t *testing.T) {
+	receiver, _ := newTestReceiver(t)
+	client := ensureReceiverRegistered(t, receiver, 1)
+
+	firstSubscription, err := receiver.Subscribe(nil, nil)
+	require.NoError(t, err)
+	firstSubscription.Unsubscribe()
+
+	secondSubscription, err := receiver.Subscribe(nil, nil)
+	require.NoError(t, err)
+	secondSubscription.Unsubscribe()
+
+	assertRegistrationRequest(t, receiver, client.FEvalRequests())
 }
 
 func newTestReceiver(t *testing.T) (*Receiver, *recordingLogger) {
@@ -269,6 +342,44 @@ func newTestReceiver(t *testing.T) (*Receiver, *recordingLogger) {
 	})
 
 	return receiver, logger
+}
+
+func ensureReceiverRegistered(t *testing.T, receiver *Receiver, sessionID entities.SessionID) *recordingMATLABSessionClient {
+	t.Helper()
+
+	client := &recordingMATLABSessionClient{}
+	require.NoError(t, receiver.EnsureRegistered(t.Context(), newRecordingLogger(), client, sessionID))
+	assertRegistrationRequest(t, receiver, client.FEvalRequests())
+
+	return client
+}
+
+func assertRegistrationRequest(t *testing.T, receiver *Receiver, requests []entities.FEvalRequest) {
+	t.Helper()
+
+	require.NotEmpty(t, requests)
+	port, err := listenerPort(receiver.listener)
+	require.NoError(t, err)
+
+	request := requests[0]
+	assert.Equal(t, registerProgressEndpointFunction, request.Function)
+	assert.Equal(t, []string{
+		receiver.registrationID,
+		loopbackHost,
+		strconv.Itoa(port),
+	}, request.Arguments)
+	assert.Zero(t, request.NumOutputs)
+}
+
+func assertUnregistrationRequest(t *testing.T, receiver *Receiver, requests []entities.FEvalRequest) {
+	t.Helper()
+
+	require.NotEmpty(t, requests)
+
+	request := requests[len(requests)-1]
+	assert.Equal(t, unregisterProgressEndpointFunction, request.Function)
+	assert.Equal(t, []string{receiver.registrationID}, request.Arguments)
+	assert.Zero(t, request.NumOutputs)
 }
 
 func dialReceiver(t *testing.T, receiver *Receiver) net.Conn {
@@ -366,4 +477,44 @@ func (l *recordingLogger) WarningCount() int {
 	defer l.state.mutex.Unlock()
 
 	return len(l.state.warnings)
+}
+
+type recordingMATLABSessionClient struct {
+	mutex sync.Mutex
+
+	fevalRequests []entities.FEvalRequest
+	fevalErrors   []error
+}
+
+func (c *recordingMATLABSessionClient) Eval(context.Context, entities.Logger, entities.EvalRequest) (entities.EvalResponse, error) {
+	return entities.EvalResponse{}, nil
+}
+
+func (c *recordingMATLABSessionClient) EvalWithCapture(context.Context, entities.Logger, entities.EvalRequest) (entities.EvalResponse, error) {
+	return entities.EvalResponse{}, nil
+}
+
+func (c *recordingMATLABSessionClient) FEval(_ context.Context, _ entities.Logger, request entities.FEvalRequest) (entities.FEvalResponse, error) {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+
+	c.fevalRequests = append(c.fevalRequests, request)
+	if len(c.fevalErrors) == 0 {
+		return entities.FEvalResponse{}, nil
+	}
+
+	err := c.fevalErrors[0]
+	c.fevalErrors = c.fevalErrors[1:]
+	return entities.FEvalResponse{}, err
+}
+
+func (c *recordingMATLABSessionClient) Ping(context.Context, entities.Logger) entities.PingResponse {
+	return entities.PingResponse{}
+}
+
+func (c *recordingMATLABSessionClient) FEvalRequests() []entities.FEvalRequest {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+
+	return append([]entities.FEvalRequest(nil), c.fevalRequests...)
 }

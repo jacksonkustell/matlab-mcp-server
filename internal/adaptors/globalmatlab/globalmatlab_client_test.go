@@ -50,6 +50,40 @@ func TestGlobalMATLAB_Client_HappyPath(t *testing.T) {
 	require.Equal(t, expectedSessionClient, client)
 }
 
+func TestGlobalMATLAB_ClientWithSessionID_HappyPath(t *testing.T) {
+	// Arrange
+	mockLogger := testutils.NewInspectableLogger()
+
+	mockMATLABManagerAdaptor := &mocks.MockMATLABManagerAdaptor{}
+	defer mockMATLABManagerAdaptor.AssertExpectations(t)
+
+	expectedSessionClient := &entitiesmocks.MockMATLABSessionClient{}
+	defer expectedSessionClient.AssertExpectations(t)
+
+	ctx := t.Context()
+	expectedSessionID := entities.SessionID(123)
+
+	mockMATLABManagerAdaptor.EXPECT().
+		StartSession(ctx, mockLogger.AsMockArg()).
+		Return(expectedSessionID, nil).
+		Once()
+
+	mockMATLABManagerAdaptor.EXPECT().
+		GetMATLABSessionClient(ctx, mockLogger.AsMockArg(), expectedSessionID).
+		Return(expectedSessionClient, nil).
+		Once()
+
+	globalMATLAB := globalmatlab.New(mockMATLABManagerAdaptor)
+
+	// Act
+	client, sessionID, err := globalMATLAB.ClientWithSessionID(ctx, mockLogger)
+
+	// Assert
+	require.NoError(t, err)
+	assert.Equal(t, expectedSessionClient, client)
+	assert.Equal(t, expectedSessionID, sessionID)
+}
+
 func TestGlobalMATLAB_Client_StartSessionError(t *testing.T) {
 	// Arrange
 	mockLogger := testutils.NewInspectableLogger()

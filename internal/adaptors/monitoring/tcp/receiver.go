@@ -5,22 +5,30 @@ package tcp
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/matlab/matlab-mcp-server/internal/entities"
 	"github.com/matlab/matlab-mcp-server/internal/messages"
 	"github.com/matlab/matlab-mcp-server/internal/usecases/matlabcommandqueue"
 )
 
 const (
-	defaultAddress            = "127.0.0.1:50506"
+	loopbackHost              = "127.0.0.1"
+	defaultAddress            = loopbackHost + ":0"
 	maxMonitoringMessageBytes = 1024 * 1024
+	registrationTimeout       = time.Second
+
+	registerProgressEndpointFunction   = "matlab_mcp.registerMCPProgressEndpoint"
+	unregisterProgressEndpointFunction = "matlab_mcp.unregisterMCPProgressEndpoint"
 )
 
 var (
@@ -44,11 +52,17 @@ type Receiver struct {
 	address       string
 	listen        listenerFactory
 
-	mutex        sync.Mutex
-	listener     net.Listener
-	connections  map[net.Conn]struct{}
-	subscription *subscription
-	stopped      bool
+	registrationID string
+
+	mutex                sync.Mutex
+	listener             net.Listener
+	connections          map[net.Conn]struct{}
+	subscription         *subscription
+	stopped              bool
+	registered           bool
+	registeredSessionID  entities.SessionID
+	registeredClient     entities.MATLABSessionClient
+	registrationComplete chan struct{}
 
 	workers      sync.WaitGroup
 	shutdownOnce sync.Once
@@ -65,14 +79,100 @@ func New(loggerFactory LoggerFactory, lifecycleSignaler LifecycleSignaler) *Rece
 
 func newReceiver(loggerFactory LoggerFactory, address string, listen listenerFactory) *Receiver {
 	return &Receiver{
-		loggerFactory: loggerFactory,
-		address:       address,
-		listen:        listen,
-		connections:   make(map[net.Conn]struct{}),
+		loggerFactory:  loggerFactory,
+		address:        address,
+		listen:         listen,
+		registrationID: uuid.NewString(),
+		connections:    make(map[net.Conn]struct{}),
 	}
 }
 
-// Subscribe begins event delivery, starting the local listener on the first subscription.
+// EnsureRegistered starts the local listener and registers it with the supplied
+// MATLAB session if that session has not already been registered.
+func (r *Receiver) EnsureRegistered(
+	ctx context.Context,
+	logger entities.Logger,
+	client entities.MATLABSessionClient,
+	sessionID entities.SessionID,
+) error {
+	for {
+		r.mutex.Lock()
+		if r.stopped {
+			r.mutex.Unlock()
+			return errReceiverStopped
+		}
+
+		listener, err := r.startListenerLocked()
+		if err != nil {
+			r.mutex.Unlock()
+
+			monitoringErr := fmt.Errorf("listen for monitoring messages on %s: %w", r.address, err)
+			r.logWarning("Monitoring is unavailable.", monitoringErr)
+			return monitoringErr
+		}
+
+		if r.registered && r.registeredSessionID == sessionID {
+			r.mutex.Unlock()
+			return nil
+		}
+
+		if r.registrationComplete != nil {
+			registrationComplete := r.registrationComplete
+			r.mutex.Unlock()
+
+			select {
+			case <-registrationComplete:
+				continue
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+		}
+
+		registrationComplete := make(chan struct{})
+		r.registrationComplete = registrationComplete
+		port, err := listenerPort(listener)
+		if err != nil {
+			r.registrationComplete = nil
+			close(registrationComplete)
+			r.mutex.Unlock()
+			return err
+		}
+		r.mutex.Unlock()
+
+		_, err = client.FEval(ctx, logger, entities.FEvalRequest{
+			Function: registerProgressEndpointFunction,
+			Arguments: []string{
+				r.registrationID,
+				loopbackHost,
+				strconv.Itoa(port),
+			},
+			NumOutputs: 0,
+		})
+		if err != nil {
+			err = fmt.Errorf("register monitoring endpoint: %w", err)
+		}
+
+		r.mutex.Lock()
+		if r.registrationComplete == registrationComplete {
+			r.registrationComplete = nil
+			close(registrationComplete)
+		}
+		if err == nil && r.listener == listener {
+			r.registered = true
+			r.registeredSessionID = sessionID
+			r.registeredClient = client
+		}
+		r.mutex.Unlock()
+
+		if err != nil {
+			r.logWarning("Monitoring is unavailable.", err)
+		}
+		return err
+	}
+}
+
+// Subscribe begins event delivery for the active command. The local listener
+// must already have been prepared by EnsureRegistered.
 func (r *Receiver) Subscribe(
 	onEvent func(matlabcommandqueue.MonitoringEvent),
 	onError func(error),
@@ -86,21 +186,6 @@ func (r *Receiver) Subscribe(
 	if r.subscription != nil {
 		r.mutex.Unlock()
 		return nil, errAlreadySubscribed
-	}
-
-	if r.listener == nil {
-		listener, err := r.listen("tcp", r.address)
-		if err != nil {
-			r.mutex.Unlock()
-
-			monitoringErr := fmt.Errorf("listen for monitoring messages on %s: %w", r.address, err)
-			r.logWarning("Monitoring is unavailable.", monitoringErr)
-			return nil, monitoringErr
-		}
-
-		r.listener = listener
-		r.workers.Add(1)
-		go r.acceptConnections(listener)
 	}
 
 	activeSubscription := &subscription{
@@ -119,9 +204,28 @@ func (r *Receiver) Shutdown() error {
 	r.shutdownOnce.Do(func() {
 		r.mutex.Lock()
 		r.stopped = true
+		registrationComplete := r.registrationComplete
+		r.mutex.Unlock()
+
+		if registrationComplete != nil {
+			timer := time.NewTimer(registrationTimeout)
+			select {
+			case <-registrationComplete:
+			case <-timer.C:
+			}
+			if !timer.Stop() {
+				select {
+				case <-timer.C:
+				default:
+				}
+			}
+		}
+
+		r.mutex.Lock()
 
 		listener := r.listener
 		r.listener = nil
+		registeredClient := r.registeredClient
 
 		connections := make([]net.Conn, 0, len(r.connections))
 		for connection := range r.connections {
@@ -131,6 +235,8 @@ func (r *Receiver) Shutdown() error {
 		activeSubscription := r.subscription
 		r.subscription = nil
 		r.mutex.Unlock()
+
+		r.unregisterEndpoint(registeredClient)
 
 		if listener != nil {
 			if err := listener.Close(); err != nil && !errors.Is(err, net.ErrClosed) {
@@ -249,6 +355,7 @@ func (r *Receiver) clearListener(listener net.Listener) {
 
 	if r.listener == listener {
 		r.listener = nil
+		r.registered = false
 	}
 }
 
@@ -270,6 +377,59 @@ func (r *Receiver) logWarning(message string, err error) {
 	}
 
 	logger.WithError(err).Warn(message)
+}
+
+func (r *Receiver) startListenerLocked() (net.Listener, error) {
+	if r.listener != nil {
+		return r.listener, nil
+	}
+
+	listener, err := r.listen("tcp", r.address)
+	if err != nil {
+		return nil, err
+	}
+
+	r.listener = listener
+	r.registered = false
+	r.workers.Add(1)
+	go r.acceptConnections(listener)
+
+	return listener, nil
+}
+
+func (r *Receiver) unregisterEndpoint(client entities.MATLABSessionClient) {
+	if client == nil || r.loggerFactory == nil {
+		return
+	}
+
+	logger, loggerErr := r.loggerFactory.GetGlobalLogger()
+	if loggerErr != nil {
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), registrationTimeout)
+	defer cancel()
+
+	_, err := client.FEval(ctx, logger, entities.FEvalRequest{
+		Function:   unregisterProgressEndpointFunction,
+		Arguments:  []string{r.registrationID},
+		NumOutputs: 0,
+	})
+	if err != nil {
+		logger.WithError(err).Warn("Failed to unregister monitoring endpoint.")
+	}
+}
+
+func listenerPort(listener net.Listener) (int, error) {
+	address, ok := listener.Addr().(*net.TCPAddr)
+	if !ok {
+		return 0, fmt.Errorf("monitoring listener has unexpected address type %T", listener.Addr())
+	}
+	if address.Port <= 0 {
+		return 0, fmt.Errorf("monitoring listener has invalid port %d", address.Port)
+	}
+
+	return address.Port, nil
 }
 
 func parseMonitoringEvent(data []byte) (matlabcommandqueue.MonitoringEvent, error) {

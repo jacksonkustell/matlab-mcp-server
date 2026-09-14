@@ -5,6 +5,9 @@
 package mocks
 
 import (
+	"context"
+
+	"github.com/matlab/matlab-mcp-server/internal/entities"
 	"github.com/matlab/matlab-mcp-server/internal/usecases/matlabcommandqueue"
 	mock "github.com/stretchr/testify/mock"
 )
@@ -34,6 +37,75 @@ type MockMonitoring_Expecter struct {
 
 func (_m *MockMonitoring) EXPECT() *MockMonitoring_Expecter {
 	return &MockMonitoring_Expecter{mock: &_m.Mock}
+}
+
+// EnsureRegistered provides a mock function for the type MockMonitoring
+func (_mock *MockMonitoring) EnsureRegistered(ctx context.Context, logger entities.Logger, client entities.MATLABSessionClient, sessionID entities.SessionID) error {
+	ret := _mock.Called(ctx, logger, client, sessionID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for EnsureRegistered")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, entities.Logger, entities.MATLABSessionClient, entities.SessionID) error); ok {
+		r0 = returnFunc(ctx, logger, client, sessionID)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockMonitoring_EnsureRegistered_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'EnsureRegistered'
+type MockMonitoring_EnsureRegistered_Call struct {
+	*mock.Call
+}
+
+// EnsureRegistered is a helper method to define mock.On call
+//   - ctx context.Context
+//   - logger entities.Logger
+//   - client entities.MATLABSessionClient
+//   - sessionID entities.SessionID
+func (_e *MockMonitoring_Expecter) EnsureRegistered(ctx interface{}, logger interface{}, client interface{}, sessionID interface{}) *MockMonitoring_EnsureRegistered_Call {
+	return &MockMonitoring_EnsureRegistered_Call{Call: _e.mock.On("EnsureRegistered", ctx, logger, client, sessionID)}
+}
+
+func (_c *MockMonitoring_EnsureRegistered_Call) Run(run func(ctx context.Context, logger entities.Logger, client entities.MATLABSessionClient, sessionID entities.SessionID)) *MockMonitoring_EnsureRegistered_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 entities.Logger
+		if args[1] != nil {
+			arg1 = args[1].(entities.Logger)
+		}
+		var arg2 entities.MATLABSessionClient
+		if args[2] != nil {
+			arg2 = args[2].(entities.MATLABSessionClient)
+		}
+		var arg3 entities.SessionID
+		if args[3] != nil {
+			arg3 = args[3].(entities.SessionID)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *MockMonitoring_EnsureRegistered_Call) Return(err error) *MockMonitoring_EnsureRegistered_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockMonitoring_EnsureRegistered_Call) RunAndReturn(run func(ctx context.Context, logger entities.Logger, client entities.MATLABSessionClient, sessionID entities.SessionID) error) *MockMonitoring_EnsureRegistered_Call {
+	_c.Call.Return(run)
+	return _c
 }
 
 // Subscribe provides a mock function for the type MockMonitoring
